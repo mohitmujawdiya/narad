@@ -2,6 +2,7 @@ import { z } from "zod";
 import { router, publicProcedure } from "../trpc";
 import { db } from "../db";
 import { logActivity } from "../services/activity-log";
+import { parseCompanyUrl } from "../services/url-parse";
 
 const CompanyStatusEnum = z.enum([
   "Discovered",
@@ -113,5 +114,31 @@ export const companiesRouter = router({
     .mutation(async ({ input }) => {
       await db.company.delete({ where: { id: input.id } });
       return { ok: true };
+    }),
+
+  createFromUrl: publicProcedure
+    .input(z.object({ url: z.string().min(1), notes: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      const parsed = parseCompanyUrl(input.url);
+      if (!parsed) throw new Error("Invalid URL");
+
+      // Dedupe by domain
+      const existing = await db.company.findUnique({ where: { domain: parsed.domain } });
+      if (existing) return existing;
+
+      const company = await db.company.create({
+        data: {
+          name: parsed.inferredName,
+          domain: parsed.domain,
+          sourceUrl: parsed.url,
+          notes: input.notes,
+        },
+      });
+      await logActivity({
+        type: "company-created",
+        companyId: company.id,
+        payload: { sourceUrl: parsed.url, via: "single-url-drop" },
+      });
+      return company;
     }),
 });
