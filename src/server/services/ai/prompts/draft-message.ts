@@ -1,5 +1,44 @@
-import type { Profile, Contact, Company, Template, CompanyResearch } from "@prisma/client";
 import { VOICE_RULES } from "./voice";
+
+// NOTE: Decoupled from @prisma/client during redesign-v2 Slice 1. The
+// underlying Contact/Company/Template/CompanyResearch models were collapsed
+// into Pursuit. Slice 2 will rewire this prompt against the Pursuit shape;
+// until then we keep the prompt code working off plain structural types.
+type Profile = {
+  narrative: string | null;
+  cvMarkdown: string | null;
+  signature: string | null;
+  visaDisclosurePolicy: string;
+};
+
+type Contact = {
+  name: string;
+  role: string | null;
+  linkedinUrl: string | null;
+  email: string | null;
+  twitterUrl: string | null;
+};
+
+type Company = {
+  name: string;
+  domain: string | null;
+  sector: string | null;
+  stage: string | null;
+};
+
+type Template = {
+  channel: string;
+  contactType: string;
+  body: string;
+  subject: string | null;
+  constraints: unknown;
+};
+
+type CompanyResearch = {
+  overview: unknown;
+  hiringSignal: unknown;
+  founderContent: unknown;
+};
 
 export type DraftMessageInput = {
   profile: Pick<Profile, "narrative" | "cvMarkdown" | "signature" | "visaDisclosurePolicy">;

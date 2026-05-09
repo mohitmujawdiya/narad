@@ -23,9 +23,16 @@ export const profileRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      // archetypes + sendDefaults are stored as JSON-encoded strings under
+      // the SQLite schema introduced in redesign-v2.
+      const { archetypes, sendDefaults, ...rest } = input;
       return db.profile.update({
         where: { id: "singleton" },
-        data: input,
+        data: {
+          ...rest,
+          ...(archetypes !== undefined ? { archetypes: JSON.stringify(archetypes) } : {}),
+          ...(sendDefaults !== undefined ? { sendDefaults: JSON.stringify(sendDefaults) } : {}),
+        },
       });
     }),
 

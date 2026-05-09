@@ -1,4 +1,11 @@
-import type { Profile } from "@prisma/client";
+// NOTE: Decoupled from @prisma/client during redesign-v2 Slice 1. Slice 2
+// will rewire this against the Pursuit shape; until then we keep the prompt
+// code working off plain structural types.
+type Profile = {
+  narrative: string | null;
+  archetypes: unknown;
+  cvMarkdown: string | null;
+};
 
 type CompanyInput = {
   name: string;
