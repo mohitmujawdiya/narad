@@ -50,6 +50,12 @@ Outbound + inbound job pipeline GUI. Single-user local app. Built on a stripped 
 - `next-themes` with `attribute="class"` drives the `.dark` class on `<html>`. Default = system.
 - Tokens defined in `src/app/globals.css`; consumed via shadcn primitives.
 
+**AI prompt voice rules:**
+- Single source of truth in `src/server/services/ai/prompts/voice.ts` (`VOICE_RULES` export).
+- All drafting prompts that ask the model to produce reader-facing prose import and prepend `VOICE_RULES` to their system prompt.
+- Banned-words list, length caps, and concreteness bar live there. Update once → all prompts inherit.
+- Research basis: 2026 cold-outreach best practices + AI-tell detection literature. See ROADMAP decision history row.
+
 **Send adapter pattern:**
 - Each adapter implements `SendAdapter` from `src/server/services/send-adapters/types.ts`.
 - `dispatchSend({touchpointId, adapterId})` routes to the right adapter and updates `Touchpoint.status` based on `SendResult.kind`.
