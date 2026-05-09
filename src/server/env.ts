@@ -4,6 +4,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url().optional(),
   CAREEROPS_PATH: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().optional().default(""),
   PERPLEXITY_API_KEY: z.string().optional().default(""),
   ANTHROPIC_API_KEY: z.string().optional().default(""),
   GMAIL_CLIENT_ID: z.string().optional().default(""),
@@ -27,6 +28,13 @@ export function requireAnthropicKey(): string {
     throw new Error("ANTHROPIC_API_KEY missing — set it in .env.local before invoking Claude");
   }
   return env.ANTHROPIC_API_KEY;
+}
+
+export function requireOpenAIKey(): string {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY missing — set it in .env.local before invoking OpenAI");
+  }
+  return env.OPENAI_API_KEY;
 }
 
 export function requirePerplexityKey(): string {

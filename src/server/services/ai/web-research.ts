@@ -24,8 +24,6 @@ export type WebResearchRequest = {
   system?: string;
   /** Override default model (gpt-5.5). */
   model?: string;
-  /** Temperature (default 0.2 for factual research). */
-  temperature?: number;
 };
 
 /**
@@ -49,7 +47,6 @@ export async function webResearch(req: WebResearchRequest): Promise<ResearchResu
       model,
       tools: [{ type: "web_search" }],
       input,
-      temperature: req.temperature ?? 0.2,
     });
   } catch (e) {
     const err = e as { status?: number; message?: string };
