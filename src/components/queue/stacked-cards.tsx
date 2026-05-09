@@ -8,10 +8,13 @@ import { SendButton } from "@/components/send/send-button";
 import { MessageEditor, type DraftValue } from "@/components/messages/message-editor";
 import { useKeyboardShortcut } from "@/lib/keyboard";
 import { toast } from "sonner";
+import { ConfidenceBadge } from "@/components/messages/confidence-badge";
 
 export function StackedCards() {
   const queue = trpc.touchpoints.listQueue.useQuery();
   const utils = trpc.useUtils();
+  const profile = trpc.profile.get.useQuery();
+  const threshold = ((profile.data?.sendDefaults as { confidenceThreshold?: number } | null)?.confidenceThreshold) ?? 75;
   const updateMessage = trpc.touchpoints.updateMessage.useMutation();
   const skip = trpc.touchpoints.skip.useMutation({
     onSuccess: () => utils.touchpoints.listQueue.invalidate(),
@@ -69,10 +72,19 @@ export function StackedCards() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Channel: {current.channel} · Status: {current.status}
-            {current.message?.draftConfidence != null && ` · Confidence: ${current.message.draftConfidence}/100`}
-          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Channel: {current.channel}</span>
+            <span>·</span>
+            <span>Status: {current.status}</span>
+            <span>·</span>
+            <ConfidenceBadge score={current.message?.draftConfidence ?? null} threshold={threshold} />
+            {current.message?.reasoning && (
+              <>
+                <span>·</span>
+                <span className="italic">{current.message.reasoning}</span>
+              </>
+            )}
+          </div>
 
           {editing && editorValue ? (
             <>
