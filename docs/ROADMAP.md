@@ -124,6 +124,7 @@ Major decisions and when they were made. Each row points to the spec/plan doc th
 | 2026-05-09 | Drop LaTeX, multi-language modes, `deep.md`, patterns-analysis from v1 | [Spec §5 #10](superpowers/specs/2026-05-09-narad-design.md#5-decision-log-locked) |
 | 2026-05-09 | Voyage AI for embeddings (Phase B); free 50M tokens/month | [Spec §5 #11](superpowers/specs/2026-05-09-narad-design.md#5-decision-log-locked) |
 | 2026-05-09 | Phase A decomposed into 3 sub-plans (A1, A2, A3) for plan-doc manageability | This roadmap |
+| 2026-05-09 | Theme system: single accent hue 195 (teal-cyan) across both modes, cool-slate neutrals (hue 250), `next-themes` for system/light/dark toggle. Research-driven: avoid pure black/white, reduce chroma in dark mode, hand-tune per mode rather than invert | Polish add post-A1 ship |
 
 ---
 
