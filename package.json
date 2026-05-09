@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "smoke:ai": "tsx scripts/smoke-ai.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.30",
