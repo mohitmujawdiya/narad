@@ -7,10 +7,13 @@ import Link from "next/link";
 import { DraftDialog } from "@/components/messages/draft-dialog";
 import { AiDraftDialog } from "@/components/messages/ai-draft-dialog";
 import { Markdown } from "@/components/ui/markdown";
+import { TouchpointRow } from "@/components/contacts/touchpoint-row";
 
 export default function Page(props: { params: Promise<{ id: string }> }) {
   const { id } = use(props.params);
   const contact = trpc.contacts.byId.useQuery({ id });
+  const profile = trpc.profile.get.useQuery();
+  const threshold = ((profile.data?.sendDefaults as { confidenceThreshold?: number } | null)?.confidenceThreshold) ?? 75;
 
   if (contact.isLoading || contact.isPending) {
     return (
@@ -69,13 +72,14 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
           {c.touchpoints.length === 0 ? (
             <p className="text-sm text-muted-foreground">No touchpoints yet. Draft one from the queue or here (coming in Task 23).</p>
           ) : (
-            <ul className="divide-y border rounded-md">
+            <ul className="divide-y border rounded-md overflow-hidden">
               {c.touchpoints.map((tp) => (
-                <li key={tp.id} className="px-3 py-2">
-                  <p className="text-sm font-medium">{tp.channel} · {tp.status}</p>
-                  <p className="text-xs text-muted-foreground">{tp.sentAt ? `Sent ${new Date(tp.sentAt).toLocaleString()}` : "Draft"}</p>
-                  {tp.message && <p className="text-sm mt-1 line-clamp-2">{tp.message.body}</p>}
-                </li>
+                <TouchpointRow
+                  key={tp.id}
+                  touchpoint={tp}
+                  contactId={c.id}
+                  threshold={threshold}
+                />
               ))}
             </ul>
           )}
