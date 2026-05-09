@@ -8,6 +8,7 @@ import { type RouterOutputs } from "@/lib/trpc-types";
 import Link from "next/link";
 import { AddContactDialog } from "@/components/contacts/add-contact-dialog";
 import { ResearchTab } from "./research-tab";
+import { Markdown } from "@/components/ui/markdown";
 
 type Company = RouterOutputs["companies"]["byId"];
 
@@ -111,7 +112,7 @@ export function CompanyTabs({ company }: { company: Company }) {
         </TabsContent>
 
         <TabsContent value="notes" className="space-y-2">
-          <p className="text-sm whitespace-pre-wrap">{company.notes || "—"}</p>
+          {company.notes ? <Markdown>{company.notes}</Markdown> : <p className="text-sm text-muted-foreground">No notes.</p>}
         </TabsContent>
       </Tabs>
     </div>

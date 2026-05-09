@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CitationList } from "./citation-list";
 import { RefreshResearchButton } from "./refresh-research-button";
 import { Sparkles } from "lucide-react";
+import { Markdown } from "@/components/ui/markdown";
 
 type ResearchEntry = {
   text: string;
@@ -20,7 +21,7 @@ function Section({ title, entry }: { title: string; entry: ResearchEntry | null 
   return (
     <div className="space-y-2 rounded-md border border-border bg-card p-4">
       <h3 className="font-medium text-sm">{title}</h3>
-      <p className="whitespace-pre-wrap text-sm leading-relaxed">{entry.text}</p>
+      <Markdown>{entry.text}</Markdown>
       <CitationList citations={entry.citations ?? []} />
     </div>
   );

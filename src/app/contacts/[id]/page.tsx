@@ -6,6 +6,7 @@ import { Topbar } from "@/components/layout/topbar";
 import Link from "next/link";
 import { DraftDialog } from "@/components/messages/draft-dialog";
 import { AiDraftDialog } from "@/components/messages/ai-draft-dialog";
+import { Markdown } from "@/components/ui/markdown";
 
 export default function Page(props: { params: Promise<{ id: string }> }) {
   const { id } = use(props.params);
@@ -48,7 +49,14 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
           <p className="text-sm"><strong>Email:</strong> {c.email ?? "—"} {c.emailConfidence && <em className="text-xs text-muted-foreground">({c.emailConfidence})</em>}</p>
           <p className="text-sm"><strong>LinkedIn:</strong> {c.linkedinUrl ? <a href={c.linkedinUrl} className="underline">{c.linkedinUrl}</a> : "—"}</p>
           <p className="text-sm"><strong>Twitter:</strong> {c.twitterUrl ? <a href={c.twitterUrl} className="underline">{c.twitterUrl}</a> : "—"}</p>
-          <p className="text-sm"><strong>Notes:</strong> {c.notes || "—"}</p>
+          <div className="text-sm space-y-1">
+            <strong>Notes:</strong>
+            {c.notes ? (
+              <Markdown className="text-sm">{c.notes}</Markdown>
+            ) : (
+              <p className="text-muted-foreground inline">—</p>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2">
