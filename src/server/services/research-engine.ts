@@ -113,6 +113,52 @@ async function runResearch(companyId: string, opts: { useCache: boolean }): Prom
     companyId,
     payload: { fromCache: !opts.useCache ? false : "mixed", kinds },
   });
+
+  // Hydrate the Company row from the research output: extract headcount,
+  // stage, sector if not already set, then re-score fit using the richer
+  // research context. Both are best-effort; failures don't block research.
+  await extractCompanyFactsFromOverview(companyId, byKind.overview?.text ?? "").catch((e) => {
+    console.warn("extractCompanyFactsFromOverview skipped:", (e as Error).message);
+  });
+  await scoreCompanyFit(companyId).catch((e) => {
+    console.warn("post-research fit score skipped:", (e as Error).message);
+  });
+}
+
+/**
+ * Extract structured fields (headcount, stage, sector) from a free-form overview
+ * and update the Company row. Only fills fields that are currently null —
+ * preserves any user-set values.
+ */
+export async function extractCompanyFactsFromOverview(
+  companyId: string,
+  overviewText: string,
+): Promise<void> {
+  if (!overviewText.trim()) return;
+
+  const company = await db.company.findUniqueOrThrow({ where: { id: companyId } });
+
+  const result = await openaiJson<{
+    headcount: number | null;
+    stage: string | null;
+    sector: string | null;
+  }>({
+    system:
+      'Extract structured company facts from a research overview. Return JSON only: {"headcount": <integer or null>, "stage": <string or null>, "sector": <string or null>}. headcount is the best estimate as an integer (e.g., 250 for "200-300 employees"). stage is one of: "pre-seed", "seed", "series-a", "series-b", "series-c", "series-d+", "growth", "public", "private". sector is a short descriptor (e.g., "fintech", "AI infra", "developer tools", "VC firm"). Use null if a fact is not present. Do not invent.',
+    user: `Overview text:\n\n${overviewText.slice(0, 4000)}`,
+    model: "gpt-5.4-mini",
+    maxTokens: 200,
+  });
+
+  // Only update fields that are currently empty — don't overwrite user-set values.
+  await db.company.update({
+    where: { id: companyId },
+    data: {
+      headcount: company.headcount ?? result.data.headcount ?? undefined,
+      stage: company.stage ?? result.data.stage ?? undefined,
+      sector: company.sector ?? result.data.sector ?? undefined,
+    },
+  });
 }
 
 function hashQuery(input: { companyId: string; kind: string; prompt: string }): string {

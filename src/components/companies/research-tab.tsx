@@ -68,6 +68,9 @@ export function ResearchTab({ companyId }: { companyId: string }) {
       // Invalidate the query key directly (not via local refetch) so the
       // refresh works even if the user has navigated away from this tab.
       void utils.research.byCompanyId.invalidate({ companyId });
+      // Also invalidate the company itself — research extracts headcount,
+      // stage, sector, fit score; the Overview tab needs to refetch.
+      void utils.companies.byId.invalidate({ id: companyId });
     },
   });
 
