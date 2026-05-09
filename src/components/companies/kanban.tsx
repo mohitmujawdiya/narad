@@ -1,8 +1,18 @@
 "use client";
 
-import { DndContext, type DragEndEvent, useDroppable } from "@dnd-kit/core";
+import { useState } from "react";
+import {
+  DndContext,
+  type DragEndEvent,
+  type DragStartEvent,
+  useDroppable,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { trpc } from "@/lib/trpc";
-import { CompanyCard } from "./company-card";
+import { CompanyCard, CompanyCardOverlay } from "./company-card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -17,14 +27,22 @@ const COLUMNS = [
 
 type ColumnStatus = (typeof COLUMNS)[number]["id"];
 
-function Column({ status, label, children }: { status: ColumnStatus; label: string; children: React.ReactNode }) {
+function Column({
+  status,
+  label,
+  children,
+}: {
+  status: ColumnStatus;
+  label: string;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col w-72 shrink-0 rounded-lg bg-muted border border-border/70",
-        isOver && "ring-2 ring-primary"
+        "flex flex-col w-72 shrink-0 rounded-lg bg-muted border border-border/70 transition-shadow",
+        isOver && "ring-2 ring-primary",
       )}
     >
       <div className="px-3 py-2 border-b border-border/70 font-medium text-sm">{label}</div>
@@ -35,29 +53,71 @@ function Column({ status, label, children }: { status: ColumnStatus; label: stri
 
 export function Kanban() {
   const list = trpc.companies.list.useQuery();
+  const utils = trpc.useUtils();
+
   const setStatus = trpc.companies.setStatus.useMutation({
-    onSuccess: () => list.refetch(),
-    onError: (e) => toast.error(e.message),
+    onMutate: async ({ id, status }) => {
+      // Cancel any in-flight refetch so it doesn't overwrite the optimistic update.
+      await utils.companies.list.cancel();
+      const previous = utils.companies.list.getData();
+      utils.companies.list.setData(undefined, (old) => {
+        if (!old) return old;
+        return old.map((c) => (c.id === id ? { ...c, status } : c));
+      });
+      return { previous };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previous) utils.companies.list.setData(undefined, ctx.previous);
+      toast.error(err.message);
+    },
+    onSettled: () => {
+      // Re-sync with server truth (background refetch).
+      utils.companies.list.invalidate();
+    },
   });
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // 4px activation constraint avoids accidental drags when clicking on the card body
+  // or the company-name link.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   if (list.isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>;
   if (!list.data) return null;
 
   const grouped = COLUMNS.reduce(
-    (acc, col) => ({ ...acc, [col.id]: list.data.filter((c) => c.status === col.id) }),
-    {} as Record<ColumnStatus, typeof list.data>
+    (acc, col) => ({
+      ...acc,
+      [col.id]: list.data.filter((c) => c.status === col.id),
+    }),
+    {} as Record<ColumnStatus, typeof list.data>,
   );
 
+  const activeCompany = activeId ? list.data.find((c) => c.id === activeId) : null;
+
+  function handleDragStart(evt: DragStartEvent) {
+    setActiveId(String(evt.active.id));
+  }
+
   function handleDragEnd(evt: DragEndEvent) {
+    setActiveId(null);
     const id = String(evt.active.id);
     const newStatus = evt.over?.id as ColumnStatus | undefined;
-    if (newStatus && COLUMNS.some((c) => c.id === newStatus)) {
-      setStatus.mutate({ id, status: newStatus });
-    }
+    if (!newStatus || !COLUMNS.some((c) => c.id === newStatus)) return;
+    const current = list.data?.find((c) => c.id === id);
+    if (!current || current.status === newStatus) return;
+    setStatus.mutate({ id, status: newStatus });
   }
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <div className="flex gap-3 p-6 overflow-x-auto h-[calc(100vh-var(--topbar-h))]">
         {COLUMNS.map((col) => (
           <Column key={col.id} status={col.id} label={col.label}>
@@ -67,6 +127,9 @@ export function Kanban() {
           </Column>
         ))}
       </div>
+      <DragOverlay>
+        {activeCompany ? <CompanyCardOverlay company={activeCompany} /> : null}
+      </DragOverlay>
     </DndContext>
   );
 }
