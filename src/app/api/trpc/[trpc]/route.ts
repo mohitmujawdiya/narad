@@ -1,13 +1,14 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { auth } from "@clerk/nextjs/server";
 import { appRouter } from "@/server/routers/_app";
 import { createContext } from "@/server/trpc";
 import { trpcLimiter, getRateLimitIdentifier, rateLimitResponse, safeLimit } from "@/lib/rate-limit";
 
+// Narad is a single-user local app — no auth needed.
+const SINGLE_USER_ID = "local-user";
+
 async function handler(req: Request) {
   if (trpcLimiter) {
-    const { userId } = await auth();
-    const id = getRateLimitIdentifier(userId, req);
+    const id = getRateLimitIdentifier(SINGLE_USER_ID, req);
     const { success, reset } = await safeLimit(trpcLimiter, id);
     if (!success) return rateLimitResponse(reset);
   }

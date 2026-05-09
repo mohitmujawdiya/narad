@@ -14,7 +14,6 @@ import {
   PanelLeftClose,
   LogIn,
 } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -105,7 +104,7 @@ export function Sidebar({ projectId, projectName, collapsed, isDemo }: SidebarPr
               <LogIn className="h-4 w-4" />
             </Link>
           ) : (
-            <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold" title="Local user">U</div>
           )}
         </div>
       </div>
@@ -181,7 +180,7 @@ export function Sidebar({ projectId, projectName, collapsed, isDemo }: SidebarPr
           </Button>
         ) : (
           <>
-            <UserButton appearance={{ elements: { avatarBox: "h-6 w-6" } }} />
+            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold" title="Local user">U</div>
             <Button variant="ghost" size="icon" className="ml-auto h-7 w-7">
               <Settings className="h-4 w-4" />
             </Button>

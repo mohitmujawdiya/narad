@@ -1,10 +1,9 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import { auth } from "@clerk/nextjs/server";
-import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
-const DEMO_USER_ID = process.env.DEMO_USER_ID;
+// Narad is a single-user local app — no auth needed.
+const SINGLE_USER_ID = "local-user";
 
 export type Context = {
   db: typeof db;
@@ -14,25 +13,9 @@ export type Context = {
 };
 
 export async function createContext(): Promise<Context> {
-  const { userId } = await auth();
-
-  // Demo / Playground fallback: if no Clerk session, check the guest cookies.
-  // Both share DEMO_USER_ID but the chat route applies different rate limits.
-  if (!userId && DEMO_USER_ID) {
-    const cookieStore = await cookies();
-    const demoCookie = cookieStore.get("hannibal-demo");
-    const playgroundCookie = cookieStore.get("hannibal-playground");
-    if (demoCookie?.value === "true") {
-      return { db, userId: DEMO_USER_ID, isDemo: true, isPlayground: false };
-    }
-    if (playgroundCookie?.value === "true") {
-      return { db, userId: DEMO_USER_ID, isDemo: false, isPlayground: true };
-    }
-  }
-
   return {
     db,
-    userId,
+    userId: SINGLE_USER_ID,
     isDemo: false,
     isPlayground: false,
   };
