@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
+import { db } from "../db";
 
 export type CareerOpsImport = {
   cvMarkdown: string | null;
@@ -34,7 +35,6 @@ export async function readCareerOps(careerOpsPath: string): Promise<CareerOpsImp
 }
 
 export async function syncCareerOpsToProfile(careerOpsPath: string): Promise<void> {
-  const { db } = await import("../db");
   const data = await readCareerOps(careerOpsPath);
 
   await db.profile.update({
