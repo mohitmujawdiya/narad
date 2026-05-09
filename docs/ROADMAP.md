@@ -8,9 +8,9 @@
 
 ## Current state
 
-**Active plan:** [Plan A1 — Foundation + Manual Daily Ritual](superpowers/plans/2026-05-09-narad-phase-a1.md)
-**Status:** Brainstorming + planning complete. Implementation not yet started.
-**Next action:** Begin Task 1 (Fork Hannibal into Narad).
+**Active plan:** [Plan A1 — Foundation + Manual Daily Ritual](superpowers/plans/2026-05-09-narad-phase-a1.md) — ✅ **shipped**
+**Status:** Plan A1 complete. Tagged `v0.1-a1`. 18 integration tests passing. Manual daily ritual works end-to-end (companies/contacts CRUD, message editor with templates, queue UI with keyboard, mailto/clipboard/plain-log send, manual reply logging, CareerOps profile sync).
+**Next action:** Write Plan A2 (AI-driven drafting + sourcing parsers). User should manually exercise A1 first to validate the daily ritual before locking in A2 architecture choices.
 
 ---
 
@@ -21,7 +21,7 @@ The outbound funnel: sourcing → research → drafting → send → tracking �
 
 | Sub-plan | Status | Plan doc | Start | Ship | Tag |
 |---|---|---|---|---|---|
-| **A1 — Foundation + Manual Daily Ritual** | 📝 Planned | [2026-05-09-narad-phase-a1.md](superpowers/plans/2026-05-09-narad-phase-a1.md) | — | — | `v0.1-a1` |
+| **A1 — Foundation + Manual Daily Ritual** | ✅ Shipped | [2026-05-09-narad-phase-a1.md](superpowers/plans/2026-05-09-narad-phase-a1.md) | 2026-05-09 | 2026-05-09 | `v0.1-a1` |
 | **A2 — AI-Driven Drafting + Sourcing** | ⏳ To plan after A1 ships | TBW | — | — | `v0.2-a2` |
 | **A3 — Gmail Automation + Cadence + Funnel** | ⏳ To plan after A2 ships | TBW | — | — | `v0.3-a3` |
 
@@ -61,48 +61,48 @@ Items the original spec lists as out-of-scope for v1. Each gets a separate spec/
 44 tasks total across 6 slices. Each task ~3-5 steps. Tracked in [the plan doc](superpowers/plans/2026-05-09-narad-phase-a1.md); summary here.
 
 ### Slice 1 — Project bootstrap (Tasks 1-6)
-- [ ] 1. Fork Hannibal into Narad
-- [ ] 2. Strip Clerk auth
-- [ ] 3. Strip Hannibal-specific routes and code
-- [ ] 4. Set up environment configuration
-- [ ] 5. Set up Prisma client singleton
-- [ ] 6. Set up vitest
+- [x] 1. Fork Hannibal into Narad
+- [x] 2. Strip Clerk auth
+- [x] 3. Strip Hannibal-specific routes and code
+- [x] 4. Set up environment configuration
+- [x] 5. Set up Prisma client singleton
+- [x] 6. Set up vitest
 
 ### Slice 2 — Database schema (Tasks 7-9)
-- [ ] 7. Define full Phase A Prisma schema
-- [ ] 8. Create initial migration
-- [ ] 9. Seed default sequences and templates
+- [x] 7. Define full Phase A Prisma schema
+- [x] 8. Create initial migration
+- [x] 9. Seed default sequences and templates
 
 ### Slice 3 — Core scaffolding & layout (Tasks 10-15)
-- [ ] 10. Set up tRPC server
-- [ ] 11. Set up tRPC client + providers
-- [ ] 12. Build sidebar layout
-- [ ] 13. Build profile router and settings page
-- [ ] 14. Build CareerOps file watcher
-- [ ] 15. Add ActivityLog helper
+- [x] 10. Set up tRPC server
+- [x] 11. Set up tRPC client + providers
+- [x] 12. Build sidebar layout
+- [x] 13. Build profile router and settings page
+- [x] 14. Build CareerOps file watcher
+- [x] 15. Add ActivityLog helper
 
 ### Slice 4 — Companies CRUD (Tasks 16-21)
-- [ ] 16. Build companies router
-- [ ] 17. Build companies kanban page
-- [ ] 18. Build "add company" page (single URL drop)
-- [ ] 19. Build company detail page
-- [ ] 20. Build contacts router and add-contact dialog
-- [ ] 21. Build contact detail page
+- [x] 16. Build companies router
+- [x] 17. Build companies kanban page
+- [x] 18. Build "add company" page (single URL drop)
+- [x] 19. Build company detail page
+- [x] 20. Build contacts router and add-contact dialog
+- [x] 21. Build contact detail page
 
 ### Slice 5 — Touchpoints, messages, send dispatcher (Tasks 22-29)
-- [ ] 22. Build touchpoints + messages routers
-- [ ] 23. Build message editor + draft-touchpoint flow
-- [ ] 24. Define send adapter interface
-- [ ] 25. Implement mailto, clipboard, plain-log adapters
-- [ ] 26. Build send dispatcher + send router procedure
-- [ ] 27. Build send button UI component
-- [ ] 28. Build queue page with stacked cards + keyboard
-- [ ] 29. Build /inbox for replies
+- [x] 22. Build touchpoints + messages routers
+- [x] 23. Build message editor + draft-touchpoint flow
+- [x] 24. Define send adapter interface
+- [x] 25. Implement mailto, clipboard, plain-log adapters
+- [x] 26. Build send dispatcher + send router procedure
+- [x] 27. Build send button UI component
+- [x] 28. Build queue page with stacked cards + keyboard
+- [x] 29. Build /inbox for replies
 
 ### Slice 6 — End-to-end smoke test + README (Tasks 30-32)
-- [ ] 30. Add e2e flow integration test
-- [ ] 31. Write README for Plan A1 state
-- [ ] 32. Final smoke test and tag
+- [x] 30. Add e2e flow integration test
+- [x] 31. Write README for Plan A1 state
+- [x] 32. Final smoke test and tag
 
 ---
 
