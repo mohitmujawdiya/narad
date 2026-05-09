@@ -6,7 +6,12 @@ export type DraftMessageInput = {
   contact: Pick<Contact, "name" | "role" | "linkedinUrl" | "email" | "twitterUrl">;
   company: Pick<Company, "name" | "domain" | "sector" | "stage">;
   research: Pick<CompanyResearch, "overview" | "hiringSignal" | "founderContent"> | null;
-  template: Pick<Template, "channel" | "contactType" | "body" | "subject" | "constraints">;
+  /** Optional template — when null, AI writes from scratch using goal + context. */
+  template: Pick<Template, "channel" | "contactType" | "body" | "subject" | "constraints"> | null;
+  /** Channel must be specified explicitly (was previously implied by template). */
+  channel: "email" | "linkedin";
+  /** Optional user-stated goal/intent for this message. */
+  goal: string | null;
 };
 
 export function draftMessageSystemPrompt(): string {
@@ -36,8 +41,7 @@ The candidate is on F-1 student visa. Default policy is NEVER mention visa, OPT,
 }
 
 export function draftMessageUserPrompt(input: DraftMessageInput): string {
-  const { profile, contact, company, research, template } = input;
-  const constraints = template.constraints as { maxChars?: number; tone?: string; banPhrases?: string[] };
+  const { profile, contact, company, research, template, channel, goal } = input;
 
   const visaInstruction =
     profile.visaDisclosurePolicy === "disclose-upfront"
@@ -49,6 +53,39 @@ export function draftMessageUserPrompt(input: DraftMessageInput): string {
   const overview = (research?.overview as { text?: string } | null)?.text ?? "(no research yet)";
   const hiringSignal = (research?.hiringSignal as { text?: string } | null)?.text ?? "(no hiring signal)";
   const founderContent = (research?.founderContent as { text?: string } | null)?.text ?? "(no founder content)";
+
+  const channelGuidance =
+    channel === "linkedin"
+      ? "CHANNEL: LinkedIn DM. Hard cap 300 chars. Target 75-150 words. Subject = null."
+      : "CHANNEL: Email. Target 100-180 words. Cover-letter-style if hook warrants substance, ping-style if recipient is busy/senior. Provide a subject (≤60 chars, concrete + non-pitchy).";
+
+  const templateBlock = template
+    ? `TEMPLATE TO USE AS STARTING POINT (replace every {{variable}} with concrete content from the data above; never leave a {{placeholder}} unfilled):
+- Channel hint: ${template.channel}
+- Contact-type hint: ${template.contactType}
+- Subject (email only): ${template.subject ?? "(none)"}
+- Body template:
+${template.body}
+
+Constraints from this template:
+${JSON.stringify(template.constraints)}`
+    : `NO TEMPLATE — write from scratch.
+
+Decide the best register, hook, structure, and ask based on:
+- The contact's role (${contact.role ?? "unknown"}) and what their day looks like
+- The company stage/sector (${company.stage ?? "unknown"} / ${company.sector ?? "unknown"})
+- The most concrete signal from research (cited founder posts, role gaps, recent funding)
+- The candidate's narrative + CV
+- The user's goal (below)
+
+You're not picking from a taxonomy. You're writing one specific message to one specific person.`;
+
+  const goalBlock = goal
+    ? `USER'S GOAL FOR THIS MESSAGE:
+${goal}
+
+Frame the message so it accomplishes this goal. The "ask" sentence should reflect this directly.`
+    : `USER'S GOAL: not stated. Default — open a peer-to-peer conversation grounded in the most concrete recent signal you can find in research. Ask one question they'd want to answer (not "are you hiring", but something specific to their work).`;
 
   return `CANDIDATE:
 ${profile.narrative ?? "(no narrative)"}
@@ -80,21 +117,16 @@ ${overview}
 == Hiring signal ==
 ${hiringSignal}
 
-== Founder content ==
+== Founder content (look for OUTREACH HOOKS section) ==
 ${founderContent}
 
-TEMPLATE TO START FROM:
-- Channel: ${template.channel}
-- Contact type: ${template.contactType}
-- Subject (email only): ${template.subject ?? "(none)"}
-- Body template:
-${template.body}
+${channelGuidance}
 
-CONSTRAINTS:
-- Max chars: ${constraints.maxChars ?? "no explicit cap"}
-- Tone: ${constraints.tone ?? "peer-to-peer"}
-- Ban phrases: ${constraints.banPhrases?.join("; ") ?? "(default forbidden list)"}
-- Visa disclosure: ${visaInstruction}
+${templateBlock}
 
-Now produce the JSON object. Replace every {{variable}} in the template body using the data above. Pick the most concrete hook the research supports. Self-rate confidence honestly.`;
+${goalBlock}
+
+VISA DISCLOSURE: ${visaInstruction}
+
+Now produce the JSON object per the system prompt's spec. Pick the most concrete hook the research supports. If the research is thin, lower confidence honestly — don't invent.`;
 }

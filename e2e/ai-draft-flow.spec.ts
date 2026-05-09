@@ -38,16 +38,9 @@ test("AI draft generates a queued touchpoint with non-null confidence", async ({
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
-  // Switch channel to LinkedIn (native <select>)
-  await dialog.locator("select").selectOption("linkedin");
-
-  // Wait for templates to load, then pick linkedin-peer via the Radix Select trigger
-  const templateTrigger = dialog.locator('[role="combobox"]').first();
-  await expect(templateTrigger).toBeVisible({ timeout: 5_000 });
-  await templateTrigger.click();
-
-  // The Radix dropdown renders options in a portal — look for the option in the full page
-  await page.getByRole("option", { name: /linkedin-peer/i }).click();
+  // No template picker. Optionally fill goal:
+  const goalField = dialog.getByLabel(/Goal/i);
+  await goalField.fill("informational chat about their AI thesis");
 
   // Generate
   await dialog.getByRole("button", { name: /Generate draft/i }).click();

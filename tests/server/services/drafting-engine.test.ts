@@ -49,7 +49,7 @@ describe("draftMessageWithAI", () => {
       meta: { provider: "openai", model: "gpt-5.5", latencyMs: 1200 },
     });
 
-    const tp = await draftMessageWithAI({ contactId: contact.id, templateId: template.id });
+    const tp = await draftMessageWithAI({ contactId: contact.id, channel: "linkedin", templateId: template.id });
 
     expect(tp.status).toBe("Drafted");
     expect(tp.message?.body).toContain("Stripe Issuing");
@@ -70,7 +70,7 @@ describe("draftMessageWithAI", () => {
       },
       meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
     });
-    const tp = await draftMessageWithAI({ contactId: contact.id, templateId: template.id });
+    const tp = await draftMessageWithAI({ contactId: contact.id, channel: "linkedin", templateId: template.id });
     expect(tp.message?.draftConfidence).toBe(100);
   });
 
@@ -80,8 +80,32 @@ describe("draftMessageWithAI", () => {
       data: { message: "x", subject: null, confidenceScore: 80, reasoning: "r", hookUsed: "h" },
       meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
     });
-    await draftMessageWithAI({ contactId: contact.id, templateId: template.id });
+    await draftMessageWithAI({ contactId: contact.id, channel: "linkedin", templateId: template.id });
     const logs = await db.activityLog.findMany({ where: { contactId: contact.id } });
     expect(logs.some((l) => l.type === "touchpoint-drafted")).toBe(true);
+  });
+
+  it("works without a template (channel + optional goal)", async () => {
+    const { contact } = await setup();
+    openaiJsonMock.mockResolvedValue({
+      data: {
+        message: "From-scratch message",
+        subject: null,
+        confidenceScore: 75,
+        reasoning: "no-template path",
+        hookUsed: "test",
+      },
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
+    });
+
+    const tp = await draftMessageWithAI({
+      contactId: contact.id,
+      channel: "linkedin",
+      goal: "test goal",
+    });
+
+    expect(tp.status).toBe("Drafted");
+    expect(tp.message?.body).toBe("From-scratch message");
+    expect(tp.message?.templateId).toBeNull();
   });
 });

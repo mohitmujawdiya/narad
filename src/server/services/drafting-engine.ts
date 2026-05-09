@@ -6,7 +6,7 @@ import {
   type DraftMessageInput,
 } from "./ai/prompts/draft-message";
 import { logActivity } from "./activity-log";
-import type { Touchpoint, Message } from "@prisma/client";
+import type { Touchpoint, Message, Template } from "@prisma/client";
 
 type AiDraftRaw = {
   message: string;
@@ -18,14 +18,20 @@ type AiDraftRaw = {
 
 export async function draftMessageWithAI(args: {
   contactId: string;
-  templateId: string;
+  channel: "email" | "linkedin";
+  goal?: string;
+  templateId?: string;
 }): Promise<Touchpoint & { message: Message | null }> {
   const contact = await db.contact.findUniqueOrThrow({
     where: { id: args.contactId },
     include: { company: { include: { research: true } } },
   });
 
-  const template = await db.template.findUniqueOrThrow({ where: { id: args.templateId } });
+  const template: Pick<Template, "channel" | "contactType" | "body" | "subject" | "constraints"> | null =
+    args.templateId
+      ? await db.template.findUniqueOrThrow({ where: { id: args.templateId } })
+      : null;
+
   const profile = await db.profile.findUniqueOrThrow({ where: { id: "singleton" } });
 
   const promptInput: DraftMessageInput = {
@@ -55,13 +61,9 @@ export async function draftMessageWithAI(args: {
           founderContent: contact.company.research.founderContent,
         }
       : null,
-    template: {
-      channel: template.channel,
-      contactType: template.contactType,
-      body: template.body,
-      subject: template.subject,
-      constraints: template.constraints,
-    },
+    template,
+    channel: args.channel,
+    goal: args.goal ?? null,
   };
 
   const result = await openaiJson<AiDraftRaw>({
@@ -76,14 +78,14 @@ export async function draftMessageWithAI(args: {
   const tp = await db.touchpoint.create({
     data: {
       contactId: args.contactId,
-      channel: template.channel,
+      channel: args.channel,
       direction: "outbound",
       status: "Drafted",
       message: {
         create: {
           subject: result.data.subject,
           body: result.data.message,
-          templateId: template.id,
+          templateId: args.templateId ?? null,
           draftConfidence: confidence,
           draftedBy: result.meta.model,
           reasoning: result.data.reasoning,
@@ -103,6 +105,8 @@ export async function draftMessageWithAI(args: {
       model: result.meta.model,
       hookUsed: result.data.hookUsed,
       confidence,
+      goal: args.goal ?? null,
+      templateId: args.templateId ?? null,
     },
   });
 
