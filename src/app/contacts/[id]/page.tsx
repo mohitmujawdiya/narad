@@ -11,8 +11,27 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
   const { id } = use(props.params);
   const contact = trpc.contacts.byId.useQuery({ id });
 
-  if (contact.isLoading) return null;
-  if (!contact.data) return <div className="p-6">Not found.</div>;
+  if (contact.isLoading || contact.isPending) {
+    return (
+      <>
+        <Topbar title="Loading…" />
+        <div className="p-6 max-w-3xl space-y-3">
+          <div className="h-6 w-48 bg-muted rounded animate-pulse" />
+          <div className="h-32 w-full bg-muted/60 rounded animate-pulse" />
+        </div>
+      </>
+    );
+  }
+  if (contact.error || !contact.data) {
+    return (
+      <>
+        <Topbar title="Not found" />
+        <div className="p-6 text-sm text-muted-foreground">
+          {contact.error?.message ?? "Contact not found."}
+        </div>
+      </>
+    );
+  }
 
   const c = contact.data;
 

@@ -47,7 +47,14 @@ export function StackedCards() {
     setEditing(true);
   });
 
-  if (queue.isLoading) return null;
+  if (queue.isLoading || queue.isPending) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto space-y-3">
+        <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+        <div className="h-48 w-full bg-muted/60 rounded animate-pulse" />
+      </div>
+    );
+  }
   if (items.length === 0) {
     return <div className="p-12 text-center text-muted-foreground">Queue is empty. Draft messages from a contact page.</div>;
   }
