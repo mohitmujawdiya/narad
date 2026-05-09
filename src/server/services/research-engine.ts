@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { db } from "../db";
-import { perplexityResearch } from "./ai/perplexity";
+import { webResearch } from "./ai/web-research";
 import {
   companyOverviewPrompt,
   hiringSignalPrompt,
@@ -55,7 +55,7 @@ async function runResearch(companyId: string, opts: { useCache: boolean }): Prom
         }
       }
 
-      const result = await perplexityResearch({ prompt });
+      const result = await webResearch({ prompt });
 
       await db.researchCache.upsert({
         where: { queryHash },
@@ -66,7 +66,7 @@ async function runResearch(companyId: string, opts: { useCache: boolean }): Prom
         },
         create: {
           queryHash,
-          source: "perplexity-sonar",
+          source: "openai-web-search",
           query: prompt,
           result: serializeResult(result),
           citations: result.citations as unknown as object,

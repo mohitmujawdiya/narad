@@ -19,7 +19,7 @@ export type ResearchResult = {
   citations: CitationLink[];
   /** Provider + model that produced this. */
   meta: {
-    provider: "perplexity" | "claude";
+    provider: "openai" | "perplexity" | "claude";
     model: string;
     latencyMs: number;
   };
@@ -54,7 +54,7 @@ export type FitScore = {
 
 export class AiError extends Error {
   constructor(
-    public readonly provider: "perplexity" | "claude",
+    public readonly provider: "openai" | "perplexity" | "claude",
     public readonly kind: "auth" | "rate-limit" | "timeout" | "bad-response" | "unknown",
     message: string,
     public readonly cause?: unknown,

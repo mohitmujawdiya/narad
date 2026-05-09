@@ -2,12 +2,12 @@ import { config } from "dotenv";
 import path from "node:path";
 config({ path: path.resolve(__dirname, "../.env.local"), override: true });
 
-import { perplexityResearch } from "../src/server/services/ai/perplexity";
+import { webResearch } from "../src/server/services/ai/web-research";
 import { claudeJson } from "../src/server/services/ai/claude";
 
 async function main() {
-  console.log("→ Perplexity Sonar smoke test...");
-  const r1 = await perplexityResearch({
+  console.log("→ OpenAI web_search smoke test...");
+  const r1 = await webResearch({
     prompt: "What is Stripe? One sentence with a citation.",
   });
   console.log(`  ✓ Got ${r1.text.length} chars + ${r1.citations.length} citations in ${r1.meta.latencyMs}ms`);
