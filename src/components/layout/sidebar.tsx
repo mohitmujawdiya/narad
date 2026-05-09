@@ -65,7 +65,9 @@ export function Sidebar() {
     >
       <div
         className={cn(
-          "flex items-center border-b border-sidebar-border h-[3.5rem]",
+          // Same height + same border color as Topbar so the horizontal
+          // line continues seamlessly across the sidebar/main boundary.
+          "flex items-center h-14 border-b border-border",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}
       >
