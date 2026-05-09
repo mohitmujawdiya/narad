@@ -6,6 +6,11 @@ import { decodePursuit } from "../types/pursuit";
 import { researchPursuit } from "../services/research-engine";
 import { draftOutreachWithAI } from "../services/drafting-engine";
 import { extractJd } from "../services/jd-extractor";
+import {
+  generateJdEvaluation,
+  generateCvVariant,
+  generateCoverLetter,
+} from "../services/jd-artifacts";
 
 const STATUS_VALUES = [
   "Saved", "Researched", "Targeting", "Active",
@@ -197,5 +202,29 @@ export const pursuitsRouter = router({
       // (jd evaluation is added in Task 12 — for now, just kick off research.)
       void researchPursuit(pursuit.id).catch(() => {});
       return decodePursuit(pursuit);
+    }),
+
+  generateJdEvaluation: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await generateJdEvaluation(input.id);
+      const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(updated);
+    }),
+
+  generateCvVariant: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await generateCvVariant(input.id);
+      const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(updated);
+    }),
+
+  generateCoverLetter: publicProcedure
+    .input(z.object({ id: z.string(), hiringManagerName: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      await generateCoverLetter(input.id, { hiringManagerName: input.hiringManagerName });
+      const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(updated);
     }),
 });
