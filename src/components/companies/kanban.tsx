@@ -58,7 +58,7 @@ export function Kanban() {
 
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <div className="flex gap-3 p-6 overflow-x-auto h-[calc(100vh-4rem)]">
+      <div className="flex gap-3 p-6 overflow-x-auto h-[calc(100vh-var(--topbar-h))]">
         {COLUMNS.map((col) => (
           <Column key={col.id} status={col.id} label={col.label}>
             {grouped[col.id].map((company) => (

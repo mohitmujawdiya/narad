@@ -50,6 +50,10 @@
 :root {
   --radius: 0.625rem;
 
+  /* Layout chrome heights. Single source of truth; consumed via
+   * h-[var(--topbar-h)] / calc(100vh-var(--topbar-h)) etc. */
+  --topbar-h: 4rem;
+
   /* Narad palette — refined minimalism, cool slate base, teal accent.
    * Hue 250 = cool slate (neutrals); hue 195 = teal-cyan (accent).
    * Same hue family across light/dark; lightness + chroma hand-tuned per mode. */
