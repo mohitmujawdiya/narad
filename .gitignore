@@ -53,3 +53,6 @@ tsconfig.tsbuildinfo
 
 # Local env files
 .env.vercel-check
+
+# Hannibal-era root-level screenshots (don't track at root; public/ images still tracked)
+/*.png
