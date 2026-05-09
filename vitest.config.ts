@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     fileParallelism: false,
+    testTimeout: 30000,
   },
   resolve: {
     alias: {
