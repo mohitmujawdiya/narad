@@ -6,12 +6,14 @@ import Link from "next/link";
 export default function CompaniesPage() {
   return (
     <>
-      <Topbar title="Companies" />
-      <div className="flex justify-end px-6 pt-3">
-        <Button asChild>
-          <Link href="/companies/new">+ Add company</Link>
-        </Button>
-      </div>
+      <Topbar
+        title="Companies"
+        actions={
+          <Button asChild size="sm">
+            <Link href="/companies/new">+ Add company</Link>
+          </Button>
+        }
+      />
       <Kanban />
     </>
   );
