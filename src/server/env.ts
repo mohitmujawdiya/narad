@@ -21,3 +21,17 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export type Env = z.infer<typeof envSchema>;
+
+export function requireAnthropicKey(): string {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY missing — set it in .env.local before invoking Claude");
+  }
+  return env.ANTHROPIC_API_KEY;
+}
+
+export function requirePerplexityKey(): string {
+  if (!env.PERPLEXITY_API_KEY) {
+    throw new Error("PERPLEXITY_API_KEY missing — set it in .env.local before invoking Perplexity");
+  }
+  return env.PERPLEXITY_API_KEY;
+}
