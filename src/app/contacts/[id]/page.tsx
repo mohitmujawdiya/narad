@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { Topbar } from "@/components/layout/topbar";
 import Link from "next/link";
 import { DraftDialog } from "@/components/messages/draft-dialog";
+import { AiDraftDialog } from "@/components/messages/ai-draft-dialog";
 
 export default function Page(props: { params: Promise<{ id: string }> }) {
   const { id } = use(props.params);
@@ -32,6 +33,7 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
         </div>
 
         <div className="flex gap-2">
+          <AiDraftDialog contactId={c.id} />
           <DraftDialog contactId={c.id} />
         </div>
 
