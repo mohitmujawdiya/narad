@@ -4,6 +4,7 @@ import { db } from "../db";
 import { logActivity } from "../services/activity-log";
 import { decodePursuit } from "../types/pursuit";
 import { researchPursuit } from "../services/research-engine";
+import { draftOutreachWithAI } from "../services/drafting-engine";
 
 const STATUS_VALUES = [
   "Saved", "Researched", "Targeting", "Active",
@@ -155,5 +156,17 @@ export const pursuitsRouter = router({
       await researchPursuit(input.id, { force: true });
       const row = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
       return decodePursuit(row);
+    }),
+
+  draftOutreach: publicProcedure
+    .input(z.object({
+      id: z.string(),
+      channel: z.enum(["email", "linkedin"]),
+      goal: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await draftOutreachWithAI({ pursuitId: input.id, channel: input.channel, goal: input.goal });
+      const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(updated);
     }),
 });
