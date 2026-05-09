@@ -125,6 +125,7 @@ Major decisions and when they were made. Each row points to the spec/plan doc th
 | 2026-05-09 | Voyage AI for embeddings (Phase B); free 50M tokens/month | [Spec §5 #11](superpowers/specs/2026-05-09-narad-design.md#5-decision-log-locked) |
 | 2026-05-09 | Phase A decomposed into 3 sub-plans (A1, A2, A3) for plan-doc manageability | This roadmap |
 | 2026-05-09 | Theme system: single accent hue 195 (teal-cyan) across both modes, cool-slate neutrals (hue 250), `next-themes` for system/light/dark toggle. Research-driven: avoid pure black/white, reduce chroma in dark mode, hand-tune per mode rather than invert | Polish add post-A1 ship |
+| 2026-05-09 | **Research provider: OpenAI Responses API with built-in web_search tool, NOT Perplexity Sonar.** Spec §5 #4 said "Perplexity (research) + Claude (everything else)" assuming Perplexity Pro included unlimited API. It does not — Pro only includes $5/mo Sonar credits, ~50 companies/mo at our query volume. User has unlimited OpenAI API access via ALAAI, so OpenAI's web_search tool serves the same function with no incremental cost. Same `ResearchResult` shape, same caller signatures. Provider union in types.ts now includes "openai". | A2 mid-execution swap |
 
 ---
 
