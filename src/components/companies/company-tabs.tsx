@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { type RouterOutputs } from "@/lib/trpc-types";
+import Link from "next/link";
+import { AddContactDialog } from "@/components/contacts/add-contact-dialog";
 
 type Company = RouterOutputs["companies"]["byId"];
 
@@ -78,9 +80,23 @@ export function CompanyTabs({ company }: { company: Company }) {
           </p>
         </TabsContent>
 
-        <TabsContent value="contacts" className="space-y-2">
-          {/* Add-contact dialog and contacts list lands in Task 20 */}
-          <p className="text-sm text-muted-foreground">Contacts UI in Task 20.</p>
+        <TabsContent value="contacts" className="space-y-3">
+          <AddContactDialog companyId={company.id} />
+          {company.contacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No contacts yet.</p>
+          ) : (
+            <ul className="divide-y border rounded-md">
+              {company.contacts.map((c) => (
+                <li key={c.id} className="px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
+                    <p className="text-xs text-muted-foreground">{c.role ?? "—"}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{c.touchpoints?.length ?? 0} touchpoint{(c.touchpoints?.length ?? 0) === 1 ? "" : "s"}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </TabsContent>
 
         <TabsContent value="outreach" className="space-y-2">

@@ -8,6 +8,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     globals: true,
     passWithNoTests: true,
+    fileParallelism: false,
   },
   resolve: {
     alias: {
