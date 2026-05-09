@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Sidebar } from "@/components/layout/sidebar";
 
 export const metadata: Metadata = {
   title: "Narad",
@@ -15,7 +16,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="flex">
+            <Sidebar />
+            <main className="flex-1 min-h-screen">{children}</main>
+          </div>
+        </Providers>
       </body>
     </html>
   );
