@@ -95,7 +95,7 @@ If you're open to a quick conversation about how {{relevantSkill}} could help wi
 Thanks,
 {{senderName}}`,
       constraints: {
-        maxChars: 850,
+        maxChars: 1300,
         tone: "peer-to-peer",
         banPhrases: COMMON_BAN_PHRASES,
       },
@@ -116,7 +116,7 @@ CV attached if helpful — happy to chat about timing and process whenever conve
 
 {{senderName}}`,
       constraints: {
-        maxChars: 850,
+        maxChars: 700,
         tone: "direct",
         banPhrases: COMMON_BAN_PHRASES,
       },
