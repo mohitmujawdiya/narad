@@ -8,7 +8,9 @@ import {
   type CompanyContext,
 } from "./ai/prompts/company-research";
 import { logActivity } from "./activity-log";
-import type { ResearchResult } from "./ai/types";
+import type { ResearchResult, FitScore } from "./ai/types";
+import { claudeJson } from "./ai/claude";
+import { fitScoreSystemPrompt, fitScoreUserPrompt } from "./ai/prompts/fit-score";
 
 const CACHE_TTL_DAYS = 14;
 const CACHE_TTL_MS = CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -125,4 +127,54 @@ function serializeResult(r: ResearchResult): object {
     citations: r.citations,
     meta: r.meta,
   };
+}
+
+/**
+ * Quick fit score (Sonnet, fast). Called on Company creation if we have a Profile
+ * with narrative or CV. Failures are logged but non-blocking — the Company
+ * still gets created.
+ */
+export async function scoreCompanyFit(companyId: string): Promise<FitScore | null> {
+  const profile = await db.profile.findUnique({ where: { id: "singleton" } });
+  if (!profile?.narrative && !profile?.cvMarkdown) return null;
+
+  try {
+    const company = await db.company.findUniqueOrThrow({ where: { id: companyId } });
+
+    const result = await claudeJson<{ score: number; reason: string }>({
+      system: fitScoreSystemPrompt(),
+      user: fitScoreUserPrompt({
+        profile: {
+          narrative: profile.narrative,
+          archetypes: profile.archetypes,
+          cvMarkdown: profile.cvMarkdown,
+        },
+        company: {
+          name: company.name,
+          domain: company.domain,
+          sector: company.sector,
+          stage: company.stage,
+        },
+      }),
+      model: "claude-sonnet-4-6",
+      maxTokens: 200,
+    });
+
+    const score = clamp(Math.round(result.data.score), 0, 100);
+    const reason = String(result.data.reason ?? "").slice(0, 200);
+
+    await db.company.update({
+      where: { id: companyId },
+      data: { fitScore: score, fitReason: reason },
+    });
+
+    return { score, reason, meta: result.meta };
+  } catch (e) {
+    console.warn("fit-score skipped:", (e as Error).message);
+    return null;
+  }
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
 }
