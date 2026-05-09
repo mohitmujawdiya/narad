@@ -20,8 +20,14 @@ type ColumnStatus = (typeof COLUMNS)[number]["id"];
 function Column({ status, label, children }: { status: ColumnStatus; label: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div ref={setNodeRef} className={cn("flex flex-col w-72 shrink-0 rounded-lg bg-muted/40", isOver && "ring-2 ring-primary")}>
-      <div className="px-3 py-2 border-b font-medium text-sm">{label}</div>
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex flex-col w-72 shrink-0 rounded-lg bg-muted border border-border/70",
+        isOver && "ring-2 ring-primary"
+      )}
+    >
+      <div className="px-3 py-2 border-b border-border/70 font-medium text-sm">{label}</div>
       <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[120px]">{children}</div>
     </div>
   );
