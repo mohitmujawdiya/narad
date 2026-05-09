@@ -5,6 +5,7 @@ import { logActivity } from "../services/activity-log";
 import { decodePursuit } from "../types/pursuit";
 import { researchPursuit } from "../services/research-engine";
 import { draftOutreachWithAI } from "../services/drafting-engine";
+import { extractJd } from "../services/jd-extractor";
 
 const STATUS_VALUES = [
   "Saved", "Researched", "Targeting", "Active",
@@ -168,5 +169,33 @@ export const pursuitsRouter = router({
       await draftOutreachWithAI({ pursuitId: input.id, channel: input.channel, goal: input.goal });
       const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
       return decodePursuit(updated);
+    }),
+
+  createFromJdUrl: publicProcedure
+    .input(z.object({ jdUrl: z.string().url() }))
+    .mutation(async ({ input }) => {
+      const extracted = await extractJd(input.jdUrl);
+      if (!extracted) {
+        throw new Error("Could not extract JD from URL");
+      }
+      const pursuit = await db.pursuit.create({
+        data: {
+          type: "job",
+          jdUrl: input.jdUrl,
+          jdTitle: extracted.title,
+          jdMarkdown: extracted.jdMarkdown,
+          companyName: extracted.companyName,
+          companyDomain: extracted.companyDomain,
+        },
+      });
+      await logActivity({
+        type: "pursuit-created",
+        pursuitId: pursuit.id,
+        payload: { type: "job", source: "jd-url" },
+      });
+      // Background fire-and-forget: research. Don't await — return decoded pursuit immediately.
+      // (jd evaluation is added in Task 12 — for now, just kick off research.)
+      void researchPursuit(pursuit.id).catch(() => {});
+      return decodePursuit(pursuit);
     }),
 });
