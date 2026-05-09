@@ -1,29 +1,12 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "@/server/routers/_app";
-import { createContext } from "@/server/trpc";
-import { trpcLimiter, getRateLimitIdentifier, rateLimitResponse, safeLimit } from "@/lib/rate-limit";
 
-// Narad is a single-user local app — no auth needed.
-const SINGLE_USER_ID = "local-user";
-
-async function handler(req: Request) {
-  if (trpcLimiter) {
-    const id = getRateLimitIdentifier(SINGLE_USER_ID, req);
-    const { success, reset } = await safeLimit(trpcLimiter, id);
-    if (!success) return rateLimitResponse(reset);
-  }
-
-  return fetchRequestHandler({
+const handler = (req: Request) =>
+  fetchRequestHandler({
     endpoint: "/api/trpc",
     req,
     router: appRouter,
-    createContext,
-    onError: ({ path, error }) => {
-      console.error(`[tRPC error] ${path}:`, error);
-      if (error.cause) console.error("  cause:", error.cause);
-      if (error.stack) console.error("  stack:", error.stack);
-    },
+    createContext: () => ({}),
   });
-}
 
 export { handler as GET, handler as POST };
