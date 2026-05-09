@@ -7,6 +7,7 @@ import { touchpointsRouter } from "./touchpoints";
 import { messagesRouter } from "./messages";
 import { templatesRouter } from "./templates";
 import { sendRouter } from "./send";
+import { draftingRouter } from "./drafting";
 
 export const appRouter = router({
   profile: profileRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   messages: messagesRouter,
   templates: templatesRouter,
   send: sendRouter,
+  drafting: draftingRouter,
 });
 
 export type AppRouter = typeof appRouter;
