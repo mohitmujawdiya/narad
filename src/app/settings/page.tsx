@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [signature, setSignature] = useState("");
   const [visaPolicy, setVisaPolicy] = useState<"never-proactive" | "signal-on-positive-reply" | "disclose-upfront">("never-proactive");
   const [narrative, setNarrative] = useState("");
+  const [confidenceThreshold, setConfidenceThreshold] = useState(75);
 
   useEffect(() => {
     if (profile.data) {
@@ -31,6 +32,8 @@ export default function SettingsPage() {
       setSignature(profile.data.signature ?? "");
       setVisaPolicy(profile.data.visaDisclosurePolicy as typeof visaPolicy);
       setNarrative(profile.data.narrative ?? "");
+      const sd = (profile.data.sendDefaults as { confidenceThreshold?: number } | null) ?? null;
+      setConfidenceThreshold(sd?.confidenceThreshold ?? 75);
     }
   }, [profile.data]);
 
@@ -100,9 +103,34 @@ export default function SettingsPage() {
           />
         </section>
 
+        <section className="space-y-3">
+          <h2 className="font-medium">AI draft confidence threshold</h2>
+          <p className="text-xs text-muted-foreground">
+            Drafts at or above this score are bulk-approvable; below it are flagged for individual review. Default 75/100.
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={50}
+              max={95}
+              step={5}
+              value={confidenceThreshold}
+              onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
+              className="flex-1 max-w-xs"
+            />
+            <span className="text-sm tabular-nums w-12 text-right">{confidenceThreshold}/100</span>
+          </div>
+        </section>
+
         <Button
           onClick={() =>
-            update.mutate({ careerOpsPath, signature, visaDisclosurePolicy: visaPolicy, narrative })
+            update.mutate({
+              careerOpsPath,
+              signature,
+              visaDisclosurePolicy: visaPolicy,
+              narrative,
+              sendDefaults: { confidenceThreshold },
+            })
           }
           disabled={update.isPending}
         >
