@@ -54,6 +54,10 @@ tsconfig.tsbuildinfo
 # Local env files
 .env.vercel-check
 
+# SQLite database
+narad.db
+*.db-journal
+
 # Hannibal-era root-level screenshots (don't track at root; public/ images still tracked)
 /*.png
 

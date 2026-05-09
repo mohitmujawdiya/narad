@@ -1,250 +1,88 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider   = "postgresql"
-  extensions = []
+  provider = "sqlite"
 }
 
-// ─────────────────────────────────────────────────────────
-// Companies & Contacts
-// ─────────────────────────────────────────────────────────
+model Pursuit {
+  id              String   @id @default(cuid())
+  type            String   // "company" | "job"
 
-model Company {
-  id           String           @id @default(cuid())
-  name         String
-  domain       String?          @unique
-  stage        String? // pre-seed | seed | series-a | ... | public
-  headcount    Int?
-  sector       String?
-  founders     Json? // [{name, linkedinUrl, twitterUrl}, ...]
-  lastFunding  Json? // {amount, round, date, leadInvestor}
-  sourceUrl    String?
-  fitScore     Int? // 0-100, set by AI in A2; null in A1
-  fitReason    String?
-  status       CompanyStatus    @default(Discovered)
-  notes        String?          @db.Text
-  contacts     Contact[]
-  applications Application[] // populated in Phase B; declared here for forward-compat
-  activityLogs ActivityLog[]
-  research     CompanyResearch?
-  lists        CompanyList[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  pastedUrl       String?
+  companyName     String
+  companyDomain   String?
+  companyResearch String?  // JSON
+  fitScore        Int?
+  fitReason       String?
+  status          String   @default("Saved")
+  notes           String?
+
+  jdUrl           String?
+  jdTitle         String?
+  jdMarkdown      String?
+  jdEvaluation    String?
+  cvVariant       String?
+  coverLetter     String?
+  appliedAt       DateTime?
+
+  contactName       String?
+  contactRole       String?
+  contactEmail      String?
+  contactLinkedinUrl String?
+  contactTwitterUrl String?
+  outreachSubject  String?
+  outreachBody     String?
+  outreachConfidence Int?
+  outreachReasoning String?
+  outreachHookUsed String?
+  outreachChannel  String?
+  outreachSentAt   DateTime?
+  outreachRepliedAt DateTime?
+
+  followUps       String?  // JSON array
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  activityLog     ActivityLog[]
 
   @@index([status])
-  @@index([sector])
+  @@index([type])
 }
-
-enum CompanyStatus {
-  Discovered
-  Researched
-  Targeting
-  Active
-  Paused
-  Disqualified
-}
-
-model Contact {
-  id              String       @id @default(cuid())
-  companyId       String
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name            String
-  role            String?
-  linkedinUrl     String?
-  email           String?
-  emailConfidence String? // verified | pattern | scraped | low
-  twitterUrl      String?
-  notes           String?      @db.Text
-  status          String? // active | stale | bad-data
-  touchpoints     Touchpoint[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  @@index([companyId])
-}
-
-// ─────────────────────────────────────────────────────────
-// Outreach: Touchpoints, Messages
-// ─────────────────────────────────────────────────────────
-
-model Touchpoint {
-  id           String           @id @default(cuid())
-  contactId    String
-  contact      Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  channel      String // email | linkedin | twitter | in-person
-  direction    String // outbound | inbound
-  status       TouchpointStatus @default(Drafted)
-  sequenceId   String?
-  sequence     Sequence?        @relation(fields: [sequenceId], references: [id])
-  sequenceStep Int? // 1 | 2 | 3 ...
-  scheduledFor DateTime?
-  sentAt       DateTime?
-  repliedAt    DateTime?
-  externalId   String? // Gmail messageId, LinkedIn thread ref
-  message      Message?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  @@index([contactId])
-  @@index([status])
-}
-
-enum TouchpointStatus {
-  Drafted
-  Queued
-  Sent
-  Replied
-  Bounced
-  NoReply
-  Skipped
-}
-
-model Message {
-  id              String     @id @default(cuid())
-  touchpointId    String     @unique
-  touchpoint      Touchpoint @relation(fields: [touchpointId], references: [id], onDelete: Cascade)
-  subject         String?
-  body            String     @db.Text
-  draftConfidence Int? // 0-100, set by AI in A2; null when manually drafted
-  draftedBy       String? // model id, e.g., "claude-opus-4-7"; null when manual
-  templateId      String?
-  template        Template?  @relation(fields: [templateId], references: [id])
-  variant         String?
-  storyIds        String[] // populated in Phase B
-  reasoning       String?    @db.Text
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-}
-
-// ─────────────────────────────────────────────────────────
-// Sequences & Templates (cadence engine in A3; data here)
-// ─────────────────────────────────────────────────────────
-
-model Sequence {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  description String?
-  steps       Json // [{delayDays, templateId, condition: {ifNotReplied?: bool}}, ...]
-  isDefault   Boolean      @default(false)
-  touchpoints Touchpoint[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-}
-
-model Template {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  channel     String // email | linkedin
-  contactType String // recruiter | hiring-manager | peer | interviewer
-  subject     String? // for email; null for linkedin
-  body        String    @db.Text // with {{variables}}
-  constraints Json // {maxChars, tone, banPhrases}
-  variant     String?
-  isSeed      Boolean   @default(false)
-  messages    Message[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-// ─────────────────────────────────────────────────────────
-// Profile (singleton)
-// ─────────────────────────────────────────────────────────
-
-model Profile {
-  id                   String   @id @default("singleton")
-  cvMarkdown           String?  @db.Text
-  archetypes           Json? // [{name, weight, narrative}, ...]
-  narrative            String?  @db.Text
-  visaDisclosurePolicy String   @default("never-proactive")
-  signature            String?
-  sendDefaults         Json? // {channel, fromAddress, ...}
-  careerOpsPath        String?
-  updatedAt            DateTime @updatedAt
-  createdAt            DateTime @default(now())
-}
-
-// ─────────────────────────────────────────────────────────
-// Lists (saved filters / tags)
-// ─────────────────────────────────────────────────────────
-
-model List {
-  id          String        @id @default(cuid())
-  name        String        @unique
-  description String?
-  filters     Json?
-  companies   CompanyList[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
-
-model CompanyList {
-  companyId String
-  listId    String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  list      List    @relation(fields: [listId], references: [id], onDelete: Cascade)
-
-  @@id([companyId, listId])
-}
-
-// ─────────────────────────────────────────────────────────
-// Research (populated by Perplexity in A2)
-// ─────────────────────────────────────────────────────────
-
-model CompanyResearch {
-  id             String   @id @default(cuid())
-  companyId      String   @unique
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  overview       Json?
-  hiringSignal   Json?
-  founderContent Json?
-  refreshedAt    DateTime @default(now())
-  expiresAt      DateTime
-}
-
-model ResearchCache {
-  id        String   @id @default(cuid())
-  queryHash String   @unique
-  source    String // perplexity-sonar | claude
-  query     String   @db.Text
-  result    Json
-  citations Json?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-}
-
-// ─────────────────────────────────────────────────────────
-// ActivityLog (audit trail)
-// ─────────────────────────────────────────────────────────
 
 model ActivityLog {
-  id            String   @id @default(cuid())
-  companyId     String?
-  company       Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  contactId     String?
-  touchpointId  String?
-  applicationId String? // Phase B
-  type          String // research-cached | email-sent | reply-received | disqualified | manual-log | ...
-  payload       Json?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  pursuitId   String?
+  pursuit     Pursuit? @relation(fields: [pursuitId], references: [id], onDelete: SetNull)
+  type        String
+  payload     String?
+  createdAt   DateTime @default(now())
 
-  @@index([companyId])
-  @@index([type])
+  @@index([pursuitId])
   @@index([createdAt])
 }
 
-// ─────────────────────────────────────────────────────────
-// Forward-declared for Phase B (declared here to keep relations
-// valid; tables exist but stay empty until Phase B activates them)
-// ─────────────────────────────────────────────────────────
+model Profile {
+  id                    String   @id @default("singleton")
+  cvMarkdown            String?
+  archetypes            String?
+  narrative             String?
+  visaDisclosurePolicy  String   @default("never-proactive")
+  signature             String?
+  sendDefaults          String?
+  careerOpsPath         String?
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
+}
 
-model Application {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  status    String   @default("Evaluated")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model ResearchCache {
+  id          String   @id @default(cuid())
+  queryHash   String   @unique
+  source      String
+  query       String
+  result      String
+  citations   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
 }
