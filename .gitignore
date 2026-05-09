@@ -56,3 +56,9 @@ tsconfig.tsbuildinfo
 
 # Hannibal-era root-level screenshots (don't track at root; public/ images still tracked)
 /*.png
+
+# Playwright artifacts
+e2e-screenshots/
+test-results/
+playwright-report/
+playwright/.cache/
