@@ -37,10 +37,15 @@ export function founderContentPrompt(c: CompanyContext): string {
   const ident = c.domain ? `${c.name} (${c.domain})` : c.name;
   return `Find the most recent 5 LinkedIn or Twitter posts from ${ident}'s founders or executives. For each:
 - Author name + title
-- Date posted
+- Date posted (the actual date — month and year minimum)
 - One-sentence summary of what they said
 - A direct quote or notable phrase (≤20 words)
 - The post URL
 
-If no recent posts are findable, say so explicitly. Don't invent.`;
+If no recent posts are findable, say so explicitly. Don't invent.
+
+Then add a section labeled "OUTREACH HOOKS" with 2-3 of the most concrete, recent reference points a candidate could pivot off of in a cold message. Each hook is one sentence in this format:
+"[Author name] [date]: [specific topic in their words] — quote: 'exact phrase ≤15 words'"
+
+These hooks become the first-sentence anchor of a peer-shaped cold message. Bias toward specificity: a dated post about a concrete problem beats a vague observation about industry trends.`;
 }

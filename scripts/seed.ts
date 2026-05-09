@@ -7,6 +7,21 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const db = new PrismaClient({ adapter });
 
+const COMMON_BAN_PHRASES = [
+  "I'm passionate about",
+  "I would like to",
+  "It would be a pleasure",
+  "I'm reaching out because",
+  "I came across your profile",
+  "I'm interested in opportunities",
+  "Looking for opportunities",
+  "I admire what you're doing",
+  "Hope this finds you well",
+  "in the realm of",
+  "stands as a testament",
+  "navigating the complexities",
+];
+
 async function main() {
   console.log("Seeding…");
 
@@ -21,7 +36,7 @@ async function main() {
       constraints: {
         maxChars: 300,
         tone: "direct",
-        banPhrases: ["I'm passionate about", "I would like to", "It would be a pleasure"],
+        banPhrases: COMMON_BAN_PHRASES,
       },
       isSeed: true,
     },
@@ -34,7 +49,7 @@ async function main() {
       constraints: {
         maxChars: 300,
         tone: "peer-to-peer",
-        banPhrases: ["I'm passionate about", "I would like to", "I'm interested in opportunities"],
+        banPhrases: COMMON_BAN_PHRASES,
       },
       isSeed: true,
     },
@@ -47,7 +62,7 @@ async function main() {
       constraints: {
         maxChars: 300,
         tone: "curious",
-        banPhrases: ["I'm passionate about", "Looking for opportunities"],
+        banPhrases: COMMON_BAN_PHRASES,
       },
       isSeed: true,
     },
@@ -60,7 +75,7 @@ async function main() {
       constraints: {
         maxChars: 300,
         tone: "light",
-        banPhrases: ["I'm passionate about", "I'm excited"],
+        banPhrases: COMMON_BAN_PHRASES,
       },
       isSeed: true,
     },
@@ -80,9 +95,9 @@ If you're open to a quick conversation about how {{relevantSkill}} could help wi
 Thanks,
 {{senderName}}`,
       constraints: {
-        maxChars: 1200,
+        maxChars: 850,
         tone: "peer-to-peer",
-        banPhrases: ["I'm passionate about", "I would like to apply", "It would be a pleasure"],
+        banPhrases: COMMON_BAN_PHRASES,
       },
       isSeed: true,
     },
@@ -101,9 +116,9 @@ CV attached if helpful — happy to chat about timing and process whenever conve
 
 {{senderName}}`,
       constraints: {
-        maxChars: 800,
+        maxChars: 850,
         tone: "direct",
-        banPhrases: ["I'm passionate about"],
+        banPhrases: COMMON_BAN_PHRASES,
       },
       isSeed: true,
     },

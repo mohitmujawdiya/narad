@@ -1,4 +1,5 @@
 import type { Profile, Contact, Company, Template, CompanyResearch } from "@prisma/client";
+import { VOICE_RULES } from "./voice";
 
 export type DraftMessageInput = {
   profile: Pick<Profile, "narrative" | "cvMarkdown" | "signature" | "visaDisclosurePolicy">;
@@ -9,30 +10,29 @@ export type DraftMessageInput = {
 };
 
 export function draftMessageSystemPrompt(): string {
-  return `You write cold outreach messages that read peer-to-peer, not application-shaped.
+  return `${VOICE_RULES}
 
-OUTPUT: a single JSON object, no prose, no fences:
+OUTPUT — return a single JSON object, no prose, no fences:
 {
-  "message": "<the message body, with all variables replaced — never leave {{placeholder}} unfilled>",
+  "message": "<the message body, with all variables replaced>",
   "subject": "<email subject if email channel; null for linkedin>",
   "confidenceScore": <integer 0-100>,
   "reasoning": "<one sentence: why this hook resonates with this specific person>",
-  "hookUsed": "<one short phrase naming the concrete hook (e.g., 'Founder's Mar 2026 LinkedIn post on infra cost')>"
+  "hookUsed": "<one short phrase naming the concrete hook used (e.g., 'Founder Mar 2026 LinkedIn post on infra cost')>"
 }
 
-CONFIDENCE RUBRIC:
-- 90+: cited founder post or named role gap drives the hook; concrete evidence; would feel handcrafted
-- 75-89: solid context-driven hook (sector/stage/recent news); message is specific
-- 60-74: hook is generic but message is tailored to the role/contact-type
-- <60: you couldn't find a real hook; flag this honestly so the human reviews
+CONFIDENCE RUBRIC — score honestly, the human reviews flagged drafts:
 
-FORBIDDEN:
-- "I'm passionate about <X>" — never
-- "I would like to" — never
-- "It would be a pleasure" — never
-- Unfilled {{variables}} — replace every one or rephrase the sentence
-- Generic compliments ("amazing work!", "love what you're doing")
-- Mentioning the F-1 / visa status unless the visaDisclosurePolicy explicitly allows it`;
+- 90+ : NAMED + DATED signal. Could ONLY have been sent to this person. Examples: "saw your Mar 2026 post titled '...'"; "noticed you posted Eng Lead 2 weeks ago but no PM"; direct quote from a named recent talk/podcast.
+
+- 75-89 : Named recent event (funding round by date, named launch, named acquisition) or named role gap, but no specific quote or post. Still clearly tailored to this person, not the contact type.
+
+- 60-74 : Sector/stage match, on-target for the contact type, but no concrete recent signal naming this specific person or company moment. Could be sent to several similar contacts at similar companies.
+
+- <60 : No real hook. Generic. Flag honestly. The human will rewrite or skip.
+
+VISA / F-1 STATUS:
+The candidate is on F-1 student visa. Default policy is NEVER mention visa, OPT, CPT, or sponsorship in cold outreach — research shows this triggers "harder-hire" filters before the message gets read on its own merits. Only mention if the visaDisclosurePolicy explicitly says "disclose-upfront" (which is rare and only for visa-sensitive roles where it's been pre-discussed). For internships specifically, the candidate doesn't need "sponsorship" at all (OPT/CPT covers it) — never use the word "sponsorship".`;
 }
 
 export function draftMessageUserPrompt(input: DraftMessageInput): string {
