@@ -2,7 +2,6 @@ import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
-  DIRECT_URL: z.string().url().optional(),
   CAREEROPS_PATH: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().optional().default(""),
   PERPLEXITY_API_KEY: z.string().optional().default(""),

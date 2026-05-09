@@ -7,82 +7,82 @@ datasource db {
 }
 
 model Pursuit {
-  id              String   @id @default(cuid())
-  type            String   // "company" | "job"
+  id   String @id @default(cuid())
+  type String // "company" | "job"
 
   pastedUrl       String?
   companyName     String
   companyDomain   String?
-  companyResearch String?  // JSON
+  companyResearch String? // JSON
   fitScore        Int?
   fitReason       String?
-  status          String   @default("Saved")
+  status          String  @default("Saved")
   notes           String?
 
-  jdUrl           String?
-  jdTitle         String?
-  jdMarkdown      String?
-  jdEvaluation    String?
-  cvVariant       String?
-  coverLetter     String?
-  appliedAt       DateTime?
+  jdUrl        String?
+  jdTitle      String?
+  jdMarkdown   String?
+  jdEvaluation String?
+  cvVariant    String?
+  coverLetter  String?
+  appliedAt    DateTime?
 
-  contactName       String?
-  contactRole       String?
-  contactEmail      String?
+  contactName        String?
+  contactRole        String?
+  contactEmail       String?
   contactLinkedinUrl String?
-  contactTwitterUrl String?
-  outreachSubject  String?
-  outreachBody     String?
+  contactTwitterUrl  String?
+  outreachSubject    String?
+  outreachBody       String?
   outreachConfidence Int?
-  outreachReasoning String?
-  outreachHookUsed String?
-  outreachChannel  String?
-  outreachSentAt   DateTime?
-  outreachRepliedAt DateTime?
+  outreachReasoning  String?
+  outreachHookUsed   String?
+  outreachChannel    String?
+  outreachSentAt     DateTime?
+  outreachRepliedAt  DateTime?
 
-  followUps       String?  // JSON array
+  followUps String? // JSON array
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  activityLog     ActivityLog[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  activityLog ActivityLog[]
 
   @@index([status])
   @@index([type])
 }
 
 model ActivityLog {
-  id          String   @id @default(cuid())
-  pursuitId   String?
-  pursuit     Pursuit? @relation(fields: [pursuitId], references: [id], onDelete: SetNull)
-  type        String
-  payload     String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  pursuitId String?
+  pursuit   Pursuit? @relation(fields: [pursuitId], references: [id], onDelete: SetNull)
+  type      String
+  payload   String?
+  createdAt DateTime @default(now())
 
   @@index([pursuitId])
   @@index([createdAt])
 }
 
 model Profile {
-  id                    String   @id @default("singleton")
-  cvMarkdown            String?
-  archetypes            String?
-  narrative             String?
-  visaDisclosurePolicy  String   @default("never-proactive")
-  signature             String?
-  sendDefaults          String?
-  careerOpsPath         String?
-  updatedAt             DateTime @updatedAt
-  createdAt             DateTime @default(now())
+  id                   String   @id @default("singleton")
+  cvMarkdown           String?
+  archetypes           String?
+  narrative            String?
+  visaDisclosurePolicy String   @default("never-proactive")
+  signature            String?
+  sendDefaults         String?
+  careerOpsPath        String?
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
 }
 
 model ResearchCache {
-  id          String   @id @default(cuid())
-  queryHash   String   @unique
-  source      String
-  query       String
-  result      String
-  citations   String?
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  queryHash String   @unique
+  source    String
+  query     String
+  result    String
+  citations String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
