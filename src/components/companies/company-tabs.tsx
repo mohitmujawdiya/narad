@@ -15,9 +15,46 @@ type Company = RouterOutputs["companies"]["byId"];
 export function CompanyTabs({ company }: { company: Company }) {
   const utils = trpc.useUtils();
   const setStatus = trpc.companies.setStatus.useMutation({
-    onSuccess: () => utils.companies.byId.invalidate({ id: company.id }),
+    onMutate: async ({ id, status }) => {
+      // Optimistic — flip the status in the byId cache so the active button
+      // highlights instantly. Also flip in the kanban list cache so when the
+      // user navigates back to /companies the new status is already shown.
+      await Promise.all([
+        utils.companies.byId.cancel({ id }),
+        utils.companies.list.cancel(),
+      ]);
+      const previousById = utils.companies.byId.getData({ id });
+      const previousList = utils.companies.list.getData();
+      if (previousById) {
+        utils.companies.byId.setData({ id }, { ...previousById, status });
+      }
+      utils.companies.list.setData(undefined, (old) =>
+        old?.map((c) => (c.id === id ? { ...c, status } : c)),
+      );
+      return { previousById, previousList };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previousById) utils.companies.byId.setData({ id: company.id }, ctx.previousById);
+      if (ctx?.previousList) utils.companies.list.setData(undefined, ctx.previousList);
+      toast.error(err.message);
+    },
+    onSettled: () => {
+      // Re-sync with server truth in the background.
+      void utils.companies.byId.invalidate({ id: company.id });
+      void utils.companies.list.invalidate();
+    },
   });
   const remove = trpc.companies.remove.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.companies.list.cancel();
+      const previousList = utils.companies.list.getData();
+      utils.companies.list.setData(undefined, (old) => old?.filter((c) => c.id !== id));
+      return { previousList };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previousList) utils.companies.list.setData(undefined, ctx.previousList);
+      toast.error(err.message);
+    },
     onSuccess: () => {
       toast.success("Company removed");
       window.location.href = "/companies";
@@ -48,9 +85,10 @@ export function CompanyTabs({ company }: { company: Company }) {
           <Button
             variant="ghost"
             size="sm"
+            disabled={remove.isPending}
             onClick={() => confirm("Remove?") && remove.mutate({ id: company.id })}
           >
-            Remove
+            {remove.isPending ? "Removing…" : "Remove"}
           </Button>
         </div>
       </header>
