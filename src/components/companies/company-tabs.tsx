@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { type RouterOutputs } from "@/lib/trpc-types";
 import Link from "next/link";
 import { AddContactDialog } from "@/components/contacts/add-contact-dialog";
+import { ResearchTab } from "./research-tab";
 
 type Company = RouterOutputs["companies"]["byId"];
 
@@ -56,6 +57,7 @@ export function CompanyTabs({ company }: { company: Company }) {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="research">Research</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({company.contacts.length})</TabsTrigger>
           <TabsTrigger value="outreach">Outreach</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -78,6 +80,10 @@ export function CompanyTabs({ company }: { company: Company }) {
           <p className="text-sm">
             <strong>Fit score:</strong> {company.fitScore ?? "—"}
           </p>
+        </TabsContent>
+
+        <TabsContent value="research" className="space-y-2">
+          <ResearchTab companyId={company.id} />
         </TabsContent>
 
         <TabsContent value="contacts" className="space-y-3">
