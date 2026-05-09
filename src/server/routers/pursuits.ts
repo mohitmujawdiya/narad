@@ -11,6 +11,7 @@ import {
   generateCvVariant,
   generateCoverLetter,
 } from "../services/jd-artifacts";
+import { dispatchSend, confirmManualSend } from "../services/send-dispatcher";
 
 const STATUS_VALUES = [
   "Saved", "Researched", "Targeting", "Active",
@@ -224,6 +225,20 @@ export const pursuitsRouter = router({
     .input(z.object({ id: z.string(), hiringManagerName: z.string().optional() }))
     .mutation(async ({ input }) => {
       await generateCoverLetter(input.id, { hiringManagerName: input.hiringManagerName });
+      const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(updated);
+    }),
+
+  dispatchSend: publicProcedure
+    .input(z.object({ id: z.string(), adapterId: z.enum(["mailto", "clipboard", "plain-log"]) }))
+    .mutation(async ({ input }) => {
+      return dispatchSend({ pursuitId: input.id, adapterId: input.adapterId });
+    }),
+
+  confirmManualSend: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await confirmManualSend(input.id);
       const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
       return decodePursuit(updated);
     }),
