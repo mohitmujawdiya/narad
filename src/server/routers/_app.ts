@@ -9,6 +9,7 @@ import { templatesRouter } from "./templates";
 import { sendRouter } from "./send";
 import { draftingRouter } from "./drafting";
 import { sourcesRouter } from "./sources";
+import { dashboardRouter } from "./dashboard";
 
 export const appRouter = router({
   profile: profileRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   send: sendRouter,
   drafting: draftingRouter,
   sources: sourcesRouter,
+  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;
