@@ -18,6 +18,7 @@ export default function SettingsPage() {
       profile.refetch();
     },
   });
+  const sync = trpc.profile.syncCareerOps.useMutation();
 
   const [careerOpsPath, setCareerOpsPath] = useState("");
   const [signature, setSignature] = useState("");
@@ -51,6 +52,18 @@ export default function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             Narad will watch <code>cv.md</code>, <code>config/profile.yml</code>, and <code>data/applications.md</code>.
           </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              sync.mutate(undefined, {
+                onSuccess: () => toast.success("CareerOps profile synced"),
+                onError: (e) => toast.error(e.message),
+              });
+            }}
+            disabled={sync.isPending || !careerOpsPath}
+          >
+            {sync.isPending ? "Syncing…" : "Sync CV + profile.yml from CareerOps"}
+          </Button>
         </section>
 
         <section className="space-y-3">

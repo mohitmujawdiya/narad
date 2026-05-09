@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../trpc";
 import { db } from "../db";
+import { syncCareerOpsToProfile } from "../services/careerops-watcher";
 
 export const profileRouter = router({
   get: publicProcedure.query(async () => {
@@ -27,4 +28,13 @@ export const profileRouter = router({
         data: input,
       });
     }),
+
+  syncCareerOps: publicProcedure.mutation(async () => {
+    const profile = await db.profile.findUniqueOrThrow({ where: { id: "singleton" } });
+    if (!profile.careerOpsPath) {
+      throw new Error("No CareerOps path configured. Set it in Settings first.");
+    }
+    await syncCareerOpsToProfile(profile.careerOpsPath);
+    return { ok: true };
+  }),
 });
