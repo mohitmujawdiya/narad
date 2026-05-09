@@ -7,11 +7,17 @@ import { Button } from "@/components/ui/button";
 
 export function QueueSummaryCard() {
   const summary = trpc.dashboard.summary.useQuery();
-  if (summary.isLoading || !summary.data) {
+  if (summary.isLoading || summary.isPending || !summary.data) {
     return (
       <Card>
-        <CardHeader><CardTitle>Today's queue</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-muted-foreground">…</p></CardContent>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-muted-foreground">Today's queue</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="h-9 w-12 bg-muted rounded animate-pulse" />
+          <div className="h-3 w-40 bg-muted/60 rounded animate-pulse" />
+          <div className="h-8 w-28 bg-muted/60 rounded animate-pulse" />
+        </CardContent>
       </Card>
     );
   }
