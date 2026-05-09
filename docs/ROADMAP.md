@@ -8,9 +8,9 @@
 
 ## Current state
 
-**Active plan:** [Plan A2 — AI-Driven Drafting + Sourcing](superpowers/plans/2026-05-09-narad-phase-a2.md) — ✅ **shipped**
-**Status:** Plan A2 complete. Tagged `v0.2-a2`. ~53 integration tests. AI surface live: OpenAI Responses + web_search for research (3 parallel queries, 14d cache), Claude Opus drafting with confidence scoring, Sonnet fit-scoring on company creation, 5 sourcing parsers (YC/Wellfound/CSV/URL-list/single-URL) with format auto-detection, dashboard summary at `/`.
-**Next action:** Plan A3 (Gmail OAuth + automated send + reply polling, multi-touch sequences/cadence engine, funnel analytics). User should exercise A2 first (set OPENAI_API_KEY + ANTHROPIC_API_KEY in .env.local, paste a company URL, run research, generate AI draft) to validate before A3.
+**Active plan:** [Redesign v2 — Pursuit-first model + SQLite + Claude Code plugin](superpowers/plans/2026-05-09-narad-redesign-v2.md) — 📝 **in progress**
+**Status:** A1 + A2 shipped (tags `v0.1-a1`, `v0.2-a2`) but superseded. After real use, the data model proved over-engineered. Mid-redesign as of 2026-05-09 evening: collapsing 6+ existing entities + 5 planned entities into a single `Pursuit` table; switching Postgres+Neon → SQLite; packaging as a Claude Code plugin so distribution mirrors CareerOps. All UX work (kanban, queue, optimistic updates, theme, markdown, AI prompts, send adapters) preserved. Phase B's planned scope (JD eval, CV tailoring, cover letter, story-bank) folds into Pursuit fields conditionally. Original [design spec](superpowers/specs/2026-05-09-narad-design.md) superseded by [redesign v2 spec](superpowers/specs/2026-05-09-narad-redesign-v2.md).
+**Next action:** Execute redesign-v2 plan — Slice 0 (branch + snapshot) → Slice 7 (merge + tag `v0.3-redesign`). Estimated 2-3 days subagent-driven. After redesign ships, post-redesign work covers Gmail OAuth + cadence engine + funnel analytics within the simpler model.
 
 ---
 
