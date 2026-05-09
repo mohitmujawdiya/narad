@@ -22,7 +22,7 @@ The outbound funnel: sourcing → research → drafting → send → tracking �
 | Sub-plan | Status | Plan doc | Start | Ship | Tag |
 |---|---|---|---|---|---|
 | **A1 — Foundation + Manual Daily Ritual** | ✅ Shipped | [2026-05-09-narad-phase-a1.md](superpowers/plans/2026-05-09-narad-phase-a1.md) | 2026-05-09 | 2026-05-09 | `v0.1-a1` |
-| **A2 — AI-Driven Drafting + Sourcing** | ⏳ To plan after A1 ships | TBW | — | — | `v0.2-a2` |
+| **A2 — AI-Driven Drafting + Sourcing** | 📝 Planned | [2026-05-09-narad-phase-a2.md](superpowers/plans/2026-05-09-narad-phase-a2.md) | — | — | `v0.2-a2` |
 | **A3 — Gmail Automation + Cadence + Funnel** | ⏳ To plan after A2 ships | TBW | — | — | `v0.3-a3` |
 
 **A1 deliverable:** Working manual outreach loop — companies/contacts CRUD, message editor with templates, queue UI with keyboard, mailto/clipboard/plain-log send, manual reply log, CareerOps profile sync. End state: I can run the full daily ritual manually, typing my own drafts.
