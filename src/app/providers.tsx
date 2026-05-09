@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useState } from "react";
 import superjson from "superjson";
+import { ThemeProvider } from "next-themes";
 import { trpc } from "@/lib/trpc";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
@@ -42,13 +43,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider delayDuration={200}>
-          {children}
-          <Toaster richColors position="bottom-center" />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider delayDuration={200}>
+            {children}
+            <Toaster richColors position="bottom-center" />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
+    </ThemeProvider>
   );
 }
