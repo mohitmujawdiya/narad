@@ -4,6 +4,7 @@ import { use } from "react";
 import { trpc } from "@/lib/trpc";
 import { Topbar } from "@/components/layout/topbar";
 import Link from "next/link";
+import { DraftDialog } from "@/components/messages/draft-dialog";
 
 export default function Page(props: { params: Promise<{ id: string }> }) {
   const { id } = use(props.params);
@@ -28,6 +29,10 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
           <p className="text-sm"><strong>LinkedIn:</strong> {c.linkedinUrl ? <a href={c.linkedinUrl} className="underline">{c.linkedinUrl}</a> : "—"}</p>
           <p className="text-sm"><strong>Twitter:</strong> {c.twitterUrl ? <a href={c.twitterUrl} className="underline">{c.twitterUrl}</a> : "—"}</p>
           <p className="text-sm"><strong>Notes:</strong> {c.notes || "—"}</p>
+        </div>
+
+        <div className="flex gap-2">
+          <DraftDialog contactId={c.id} />
         </div>
 
         <section>
