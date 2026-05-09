@@ -40,7 +40,7 @@ export type DraftOutput = {
   storyIdsReferenced: string[];
   /** Provider/model meta. */
   meta: {
-    provider: "claude";
+    provider: "openai" | "claude";
     model: string;
     latencyMs: number;
   };
@@ -49,7 +49,7 @@ export type DraftOutput = {
 export type FitScore = {
   score: number; // 0–100
   reason: string; // <=200 chars
-  meta: { provider: "claude"; model: string; latencyMs: number };
+  meta: { provider: "openai" | "claude"; model: string; latencyMs: number };
 };
 
 export class AiError extends Error {

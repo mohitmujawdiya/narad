@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite
 import { db } from "@/server/db";
 import { scoreCompanyFit } from "@/server/services/research-engine";
 
-const claudeJsonMock = vi.fn();
-vi.mock("@/server/services/ai/claude", () => ({
-  claudeJson: (...args: unknown[]) => claudeJsonMock(...args),
+const openaiJsonMock = vi.fn();
+vi.mock("@/server/services/ai/openai-chat", () => ({
+  openaiJson: (...args: unknown[]) => openaiJsonMock(...args),
 }));
 
 beforeAll(async () => {
@@ -16,7 +16,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  claudeJsonMock.mockReset();
+  openaiJsonMock.mockReset();
 });
 
 afterEach(async () => {
@@ -26,9 +26,9 @@ afterEach(async () => {
 
 describe("scoreCompanyFit", () => {
   it("writes score + reason to Company on success", async () => {
-    claudeJsonMock.mockResolvedValue({
+    openaiJsonMock.mockResolvedValue({
       data: { score: 87, reason: "Strong AI/ML alignment" },
-      meta: { provider: "claude", model: "claude-sonnet-4-6", latencyMs: 100 },
+      meta: { provider: "openai", model: "gpt-5.4-mini", latencyMs: 100 },
     });
 
     const company = await db.company.create({ data: { name: "Stripe", domain: "stripe.com" } });
@@ -48,7 +48,7 @@ describe("scoreCompanyFit", () => {
     const company = await db.company.create({ data: { name: "X", domain: "x.com" } });
     const result = await scoreCompanyFit(company.id);
     expect(result).toBeNull();
-    expect(claudeJsonMock).not.toHaveBeenCalled();
+    expect(openaiJsonMock).not.toHaveBeenCalled();
     // Restore for other tests
     await db.profile.update({
       where: { id: "singleton" },
@@ -56,8 +56,8 @@ describe("scoreCompanyFit", () => {
     });
   });
 
-  it("does not throw if Claude errors", async () => {
-    claudeJsonMock.mockRejectedValue(new Error("rate limit"));
+  it("does not throw if OpenAI errors", async () => {
+    openaiJsonMock.mockRejectedValue(new Error("rate limit"));
     const company = await db.company.create({ data: { name: "Y", domain: "y.com" } });
     const result = await scoreCompanyFit(company.id);
     expect(result).toBeNull();

@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite
 import { db } from "@/server/db";
 import { draftMessageWithAI } from "@/server/services/drafting-engine";
 
-const claudeJsonMock = vi.fn();
-vi.mock("@/server/services/ai/claude", () => ({
-  claudeJson: (...args: unknown[]) => claudeJsonMock(...args),
+const openaiJsonMock = vi.fn();
+vi.mock("@/server/services/ai/openai-chat", () => ({
+  openaiJson: (...args: unknown[]) => openaiJsonMock(...args),
 }));
 
 beforeAll(async () => {
@@ -16,7 +16,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  claudeJsonMock.mockReset();
+  openaiJsonMock.mockReset();
 });
 
 afterEach(async () => {
@@ -36,9 +36,9 @@ async function setup() {
 }
 
 describe("draftMessageWithAI", () => {
-  it("creates a Drafted Touchpoint with Claude output", async () => {
+  it("creates a Drafted Touchpoint with OpenAI output", async () => {
     const { contact, template } = await setup();
-    claudeJsonMock.mockResolvedValue({
+    openaiJsonMock.mockResolvedValue({
       data: {
         message: "Hi Jane — saw the recent Stripe Issuing post...",
         subject: null,
@@ -46,7 +46,7 @@ describe("draftMessageWithAI", () => {
         reasoning: "Founder's recent post on infra cost is a strong hook",
         hookUsed: "Founder Mar 2026 post on Stripe Issuing infra",
       },
-      meta: { provider: "claude", model: "claude-opus-4-7", latencyMs: 1200 },
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 1200 },
     });
 
     const tp = await draftMessageWithAI({ contactId: contact.id, templateId: template.id });
@@ -54,13 +54,13 @@ describe("draftMessageWithAI", () => {
     expect(tp.status).toBe("Drafted");
     expect(tp.message?.body).toContain("Stripe Issuing");
     expect(tp.message?.draftConfidence).toBe(82);
-    expect(tp.message?.draftedBy).toBe("claude-opus-4-7");
+    expect(tp.message?.draftedBy).toBe("gpt-5.5");
     expect(tp.message?.reasoning).toContain("hook");
   });
 
   it("clamps confidence to 0-100 if model returns out-of-range", async () => {
     const { contact, template } = await setup();
-    claudeJsonMock.mockResolvedValue({
+    openaiJsonMock.mockResolvedValue({
       data: {
         message: "x",
         subject: null,
@@ -68,7 +68,7 @@ describe("draftMessageWithAI", () => {
         reasoning: "r",
         hookUsed: "h",
       },
-      meta: { provider: "claude", model: "claude-opus-4-7", latencyMs: 100 },
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
     });
     const tp = await draftMessageWithAI({ contactId: contact.id, templateId: template.id });
     expect(tp.message?.draftConfidence).toBe(100);
@@ -76,9 +76,9 @@ describe("draftMessageWithAI", () => {
 
   it("logs activity with type touchpoint-drafted", async () => {
     const { contact, template } = await setup();
-    claudeJsonMock.mockResolvedValue({
+    openaiJsonMock.mockResolvedValue({
       data: { message: "x", subject: null, confidenceScore: 80, reasoning: "r", hookUsed: "h" },
-      meta: { provider: "claude", model: "claude-opus-4-7", latencyMs: 100 },
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
     });
     await draftMessageWithAI({ contactId: contact.id, templateId: template.id });
     const logs = await db.activityLog.findMany({ where: { contactId: contact.id } });

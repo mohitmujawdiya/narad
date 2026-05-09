@@ -9,7 +9,7 @@ import {
 } from "./ai/prompts/company-research";
 import { logActivity } from "./activity-log";
 import type { ResearchResult, FitScore } from "./ai/types";
-import { claudeJson } from "./ai/claude";
+import { openaiJson } from "./ai/openai-chat";
 import { fitScoreSystemPrompt, fitScoreUserPrompt } from "./ai/prompts/fit-score";
 
 const CACHE_TTL_DAYS = 14;
@@ -141,7 +141,7 @@ export async function scoreCompanyFit(companyId: string): Promise<FitScore | nul
   try {
     const company = await db.company.findUniqueOrThrow({ where: { id: companyId } });
 
-    const result = await claudeJson<{ score: number; reason: string }>({
+    const result = await openaiJson<{ score: number; reason: string }>({
       system: fitScoreSystemPrompt(),
       user: fitScoreUserPrompt({
         profile: {
@@ -156,7 +156,7 @@ export async function scoreCompanyFit(companyId: string): Promise<FitScore | nul
           stage: company.stage,
         },
       }),
-      model: "claude-sonnet-4-6",
+      model: "gpt-5.4-mini",
       maxTokens: 200,
     });
 

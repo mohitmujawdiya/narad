@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { claudeJson } from "./ai/claude";
+import { openaiJson } from "./ai/openai-chat";
 import {
   draftMessageSystemPrompt,
   draftMessageUserPrompt,
@@ -64,12 +64,11 @@ export async function draftMessageWithAI(args: {
     },
   };
 
-  const result = await claudeJson<AiDraftRaw>({
+  const result = await openaiJson<AiDraftRaw>({
     system: draftMessageSystemPrompt(),
     user: draftMessageUserPrompt(promptInput),
-    model: "claude-opus-4-7",
+    model: "gpt-5.5",
     maxTokens: 1500,
-    temperature: 0.5,
   });
 
   const confidence = clamp(Math.round(result.data.confidenceScore), 0, 100);
