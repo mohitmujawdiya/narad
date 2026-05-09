@@ -1,10 +1,11 @@
 import { Topbar } from "@/components/layout/topbar";
+import { ReplyList } from "@/components/inbox/reply-list";
 
 export default function Page() {
   return (
     <>
       <Topbar title="Inbox" />
-      <div className="p-6 text-muted-foreground">Coming in upcoming task.</div>
+      <ReplyList />
     </>
   );
 }

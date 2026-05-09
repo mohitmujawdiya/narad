@@ -34,6 +34,25 @@ export const touchpointsRouter = router({
       });
     }),
 
+  listAwaitingReply: publicProcedure.query(async () => {
+    return db.touchpoint.findMany({
+      where: { status: "Sent", direction: "outbound", repliedAt: null },
+      include: { message: true, contact: { include: { company: true } } },
+      orderBy: { sentAt: "desc" },
+    });
+  }),
+
+  listReplied: publicProcedure
+    .input(z.object({ limit: z.number().optional().default(20) }).optional())
+    .query(async ({ input }) => {
+      return db.touchpoint.findMany({
+        where: { status: "Replied" },
+        include: { message: true, contact: { include: { company: true } } },
+        orderBy: { repliedAt: "desc" },
+        take: input?.limit ?? 20,
+      });
+    }),
+
   draft: publicProcedure
     .input(
       z.object({
