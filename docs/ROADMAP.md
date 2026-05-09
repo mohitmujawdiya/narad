@@ -8,9 +8,9 @@
 
 ## Current state
 
-**Active plan:** [Plan A1 — Foundation + Manual Daily Ritual](superpowers/plans/2026-05-09-narad-phase-a1.md) — ✅ **shipped**
-**Status:** Plan A1 complete. Tagged `v0.1-a1`. 18 integration tests passing. Manual daily ritual works end-to-end (companies/contacts CRUD, message editor with templates, queue UI with keyboard, mailto/clipboard/plain-log send, manual reply logging, CareerOps profile sync).
-**Next action:** Write Plan A2 (AI-driven drafting + sourcing parsers). User should manually exercise A1 first to validate the daily ritual before locking in A2 architecture choices.
+**Active plan:** [Plan A2 — AI-Driven Drafting + Sourcing](superpowers/plans/2026-05-09-narad-phase-a2.md) — ✅ **shipped**
+**Status:** Plan A2 complete. Tagged `v0.2-a2`. ~53 integration tests. AI surface live: OpenAI Responses + web_search for research (3 parallel queries, 14d cache), Claude Opus drafting with confidence scoring, Sonnet fit-scoring on company creation, 5 sourcing parsers (YC/Wellfound/CSV/URL-list/single-URL) with format auto-detection, dashboard summary at `/`.
+**Next action:** Plan A3 (Gmail OAuth + automated send + reply polling, multi-touch sequences/cadence engine, funnel analytics). User should exercise A2 first (set OPENAI_API_KEY + ANTHROPIC_API_KEY in .env.local, paste a company URL, run research, generate AI draft) to validate before A3.
 
 ---
 
@@ -22,7 +22,7 @@ The outbound funnel: sourcing → research → drafting → send → tracking �
 | Sub-plan | Status | Plan doc | Start | Ship | Tag |
 |---|---|---|---|---|---|
 | **A1 — Foundation + Manual Daily Ritual** | ✅ Shipped | [2026-05-09-narad-phase-a1.md](superpowers/plans/2026-05-09-narad-phase-a1.md) | 2026-05-09 | 2026-05-09 | `v0.1-a1` |
-| **A2 — AI-Driven Drafting + Sourcing** | 📝 Planned | [2026-05-09-narad-phase-a2.md](superpowers/plans/2026-05-09-narad-phase-a2.md) | — | — | `v0.2-a2` |
+| **A2 — AI-Driven Drafting + Sourcing** | ✅ Shipped | [2026-05-09-narad-phase-a2.md](superpowers/plans/2026-05-09-narad-phase-a2.md) | 2026-05-09 | 2026-05-09 | `v0.2-a2` |
 | **A3 — Gmail Automation + Cadence + Funnel** | ⏳ To plan after A2 ships | TBW | — | — | `v0.3-a3` |
 
 **A1 deliverable:** Working manual outreach loop — companies/contacts CRUD, message editor with templates, queue UI with keyboard, mailto/clipboard/plain-log send, manual reply log, CareerOps profile sync. End state: I can run the full daily ritual manually, typing my own drafts.
