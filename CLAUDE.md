@@ -69,13 +69,13 @@ Outbound + inbound job pipeline GUI. Single-user local app. Built on a stripped 
 ## Phase staging
 
 - **A1 — Foundation + Manual Daily Ritual** (shipped, tag `v0.1-a1`): full CRUD, manual drafting, send adapters, queue UI, inbox, theme system.
-- **A2 — AI-Driven Drafting + Sourcing** (next): Perplexity research, Claude drafting with confidence scoring, sourcing parsers (YC/Wellfound/CSV), dashboard summary.
+- **A2 — AI-Driven Drafting + Sourcing** (shipped, tag `v0.2-a2`): OpenAI Responses + web_search for research, OpenAI gpt-5.5 for drafting with confidence scoring, gpt-5.4-mini for fit scoring, sourcing parsers (YC/Wellfound/CSV/URL-list/single-URL), dashboard summary.
 - **A3 — Gmail Automation + Cadence + Funnel**: Gmail OAuth + auto-send + reply polling, multi-touch sequences with materializer cron, funnel analytics.
 - **Phase B — Inbound Port + Story-Bank**: JD evaluation, CV tailoring, cover letter, applications view, story-bank with pgvector + Voyage embeddings.
 
 ## Don't
 
-- Don't add a third AI provider — only Perplexity (research) and Claude (everything else) per spec. Gemini and OpenAI are explicitly deferred until evidence demands them.
+- Don't add a second AI provider — Narad uses OpenAI for everything (Responses API + web_search for research, gpt-5.5 for drafting, gpt-5.4-mini for fit scoring + classification). Single-provider AI is intentional: user has unlimited OpenAI via ALAAI; Perplexity Pro / Claude Max don't include unlimited API. Add a second provider only if there's a quality cliff GPT-5 can't clear.
 - Don't add LinkedIn browser automation — ToS gray, account-ban risk. Stage-and-paste only.
 - Don't reintroduce Clerk — single-user local app.
 - Don't break the Phase A → Phase B layering by mixing JD/Application/Story-bank work into A1-A3 plans.
