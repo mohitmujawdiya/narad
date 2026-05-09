@@ -5,6 +5,7 @@ import { contactsRouter } from "./contacts";
 import { touchpointsRouter } from "./touchpoints";
 import { messagesRouter } from "./messages";
 import { templatesRouter } from "./templates";
+import { sendRouter } from "./send";
 
 export const appRouter = router({
   profile: profileRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   touchpoints: touchpointsRouter,
   messages: messagesRouter,
   templates: templatesRouter,
+  send: sendRouter,
 });
 
 export type AppRouter = typeof appRouter;
