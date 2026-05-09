@@ -3,6 +3,7 @@ import { router, publicProcedure } from "../trpc";
 import { db } from "../db";
 import { logActivity } from "../services/activity-log";
 import { decodePursuit } from "../types/pursuit";
+import { researchPursuit } from "../services/research-engine";
 
 const STATUS_VALUES = [
   "Saved", "Researched", "Targeting", "Active",
@@ -138,5 +139,21 @@ export const pursuitsRouter = router({
       });
       await logActivity({ type: "manual-reply-logged", pursuitId: input.id });
       return decodePursuit(updated);
+    }),
+
+  researchEnsure: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await researchPursuit(input.id);
+      const row = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(row);
+    }),
+
+  researchRefresh: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await researchPursuit(input.id, { force: true });
+      const row = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
+      return decodePursuit(row);
     }),
 });

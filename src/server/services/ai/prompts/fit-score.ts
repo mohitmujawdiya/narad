@@ -1,6 +1,5 @@
-// NOTE: Decoupled from @prisma/client during redesign-v2 Slice 1. Slice 2
-// will rewire this against the Pursuit shape; until then we keep the prompt
-// code working off plain structural types.
+// Bridged in Slice 2 to operate on the Pursuit shape with decoded
+// companyResearch JSON. Prompt copy is unchanged.
 type Profile = {
   narrative: string | null;
   archetypes: unknown;
@@ -13,6 +12,8 @@ type CompanyInput = {
   sector: string | null;
   stage: string | null;
 };
+
+export type { CompanyInput as FitScoreCompanyInput };
 
 export function fitScoreSystemPrompt(): string {
   return `You score how well a candidate fits a target company for proactive outreach. Output ONLY a JSON object: {"score": 0-100, "reason": "<=200 chars one-line rationale"}. Score 0 means terrible fit (wrong sector, wrong stage, no hiring signal); 100 means exact fit (right sector, right stage, candidate's exact background). 70+ means worth reaching out. Be honest, not generous.`;

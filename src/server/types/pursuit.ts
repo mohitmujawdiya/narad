@@ -6,10 +6,17 @@ export type ResearchEntry = {
   meta?: { provider: string; model: string; latencyMs: number };
 };
 
+export type CompanyResearchFacts = {
+  headcount: string | null;
+  stage: string | null;
+  sector: string | null;
+};
+
 export type CompanyResearchJson = {
   overview: ResearchEntry | null;
   hiringSignal: ResearchEntry | null;
   founderContent: ResearchEntry | null;
+  facts?: CompanyResearchFacts;
   refreshedAt: string;
   expiresAt: string;
 };
