@@ -38,3 +38,18 @@ src/generated/
 # Local cache
 .turbo/
 .cache/
+
+# Vercel
+.vercel/
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Editor / AI tools
+.cursor/
+
+# Build info
+tsconfig.tsbuildinfo
+
+# Local env files
+.env.vercel-check

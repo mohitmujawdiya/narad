@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs';
+import pg from 'pg';
+const env = readFileSync('.env', 'utf8').split('\n').filter(l => l.includes('=')).reduce((a, l) => { const [k, ...v] = l.split('='); a[k.trim()] = v.join('=').replace(/^"|"$/g, ''); return a; }, {});
+const { Client } = pg;
+const c = new Client({ connectionString: env.DATABASE_URL });
+await c.connect();
+const r = await c.query("SELECT slug, user_id, deleted_at FROM projects WHERE slug IN ('demo', 'playground')");
+console.log('Projects:');
+for (const row of r.rows) console.log(' ', row);
+console.log('Expected DEMO_USER_ID:', env.DEMO_USER_ID);
+await c.end();

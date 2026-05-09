@@ -1,0 +1,316 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum PlanStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PRDStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+}
+
+enum FeatureStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+}
+
+enum RoadmapItemStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum RoadmapItemType {
+  FEATURE
+  GOAL
+  MILESTONE
+}
+
+enum RoadmapTimeScale {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum DependencyType {
+  FINISH_TO_START
+  START_TO_START
+  FINISH_TO_FINISH
+  START_TO_FINISH
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique @map("slug")
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  userId      String        @map("user_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  conversations Conversation[]
+  plans         Plan[]
+  prds          PRD[]
+  features      Feature[]
+  personas      Persona[]
+  competitors   Competitor[]
+  roadmaps      Roadmap[]
+
+  @@map("projects")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String?
+  projectId String   @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  role           MessageRole
+  content        String
+  metadata       Json?
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("messages")
+}
+
+model Plan {
+  id             String     @id @default(cuid())
+  title          String     @db.VarChar(500)
+  description    String?
+  status         PlanStatus @default(DRAFT)
+  content        String     @default("")
+  owner          String?
+  version        Int        @default(1)
+  projectId      String     @map("project_id")
+  project        Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  conversationId String?    @map("conversation_id")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  deletedAt      DateTime?  @map("deleted_at")
+
+  prds PRD[]
+
+  @@map("plans")
+}
+
+model PRD {
+  id          String    @id @default(cuid())
+  title       String    @db.VarChar(500)
+  description String?
+  content     String    @default("")
+  status      PRDStatus @default(DRAFT)
+  owner       String?
+  version     Int       @default(1)
+  projectId   String    @map("project_id")
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  planId      String?   @map("plan_id")
+  plan        Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  @@map("prds")
+}
+
+model Feature {
+  id             String        @id @default(cuid())
+  title          String        @db.VarChar(500)
+  description    String?
+  status         FeatureStatus @default(TODO)
+  priority       Int?
+  assignee       String?
+  tags           String[]      @default([])
+  color          String?
+  riceReach      Int?          @map("rice_reach")
+  riceImpact     Float?        @map("rice_impact")
+  riceConfidence Float?        @map("rice_confidence")
+  riceEffort     Float?        @map("rice_effort")
+  riceScore      Float?        @map("rice_score")
+  effort         String?
+  estimatedEffort Float?       @map("estimated_effort")
+  order          Int           @default(0)
+  projectId      String        @map("project_id")
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentId       String?       @map("parent_id")
+  parent         Feature?      @relation("FeatureTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children       Feature[]     @relation("FeatureTree")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  roadmapItems RoadmapItem[]
+
+  @@map("features")
+}
+
+model Persona {
+  id              String    @id @default(cuid())
+  name            String    @db.VarChar(200)
+  title           String?
+  avatar          String?
+  demographics    String?
+  techProficiency String?   @map("tech_proficiency")
+  quote           String?
+  goals           String[]  @default([])
+  frustrations    String[]  @default([])
+  behaviors       String[]  @default([])
+  notes           String?
+  content         String?
+  projectId       String    @map("project_id")
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  @@map("personas")
+}
+
+model Competitor {
+  id               String    @id @default(cuid())
+  name             String    @db.VarChar(200)
+  title            String?
+  url              String?
+  logo             String?
+  positioning      String?
+  pricing          String?
+  strengths        String[]  @default([])
+  weaknesses       String[]  @default([])
+  featureGaps      String[]  @default([]) @map("feature_gaps")
+  marketShare      String?   @map("market_share")
+  notes            String?
+  content          String?
+  lastResearchedAt DateTime? @map("last_researched_at")
+  projectId        String    @map("project_id")
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  @@map("competitors")
+}
+
+model Roadmap {
+  id          String           @id @default(cuid())
+  title       String           @db.VarChar(500)
+  description String?
+  timeScale   RoadmapTimeScale @default(MONTHLY)
+  projectId   String           @map("project_id")
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+
+  lanes RoadmapLane[]
+  items RoadmapItem[]
+
+  @@map("roadmaps")
+}
+
+model RoadmapLane {
+  id        String   @id @default(cuid())
+  name      String   @db.VarChar(200)
+  color     String   @default("#3b82f6")
+  order     Int      @default(0)
+  roadmapId String   @map("roadmap_id")
+  roadmap   Roadmap  @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items RoadmapItem[]
+
+  @@map("roadmap_lanes")
+}
+
+model RoadmapItem {
+  id          String           @id @default(cuid())
+  title       String           @db.VarChar(500)
+  description String?
+  status      RoadmapItemStatus @default(NOT_STARTED)
+  type        RoadmapItemType  @default(FEATURE)
+  startDate   DateTime?        @map("start_date")
+  endDate     DateTime?        @map("end_date")
+  priority    Int?
+  assignee    String?
+  color       String?
+  progress    Int?
+  order       Int              @default(0)
+  roadmapId   String           @map("roadmap_id")
+  roadmap     Roadmap          @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  laneId      String?          @map("lane_id")
+  lane        RoadmapLane?     @relation(fields: [laneId], references: [id], onDelete: SetNull)
+  featureId   String?          @map("feature_id")
+  feature     Feature?         @relation(fields: [featureId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  outgoing RoadmapDependency[] @relation("DependencyFrom")
+  incoming RoadmapDependency[] @relation("DependencyTo")
+
+  @@map("roadmap_items")
+}
+
+model WaitlistEntry {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String   @default("landing")
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("waitlist_entries")
+}
+
+model RoadmapDependency {
+  id         String         @id @default(cuid())
+  fromItemId String         @map("from_item_id")
+  fromItem   RoadmapItem    @relation("DependencyFrom", fields: [fromItemId], references: [id], onDelete: Cascade)
+  toItemId   String         @map("to_item_id")
+  toItem     RoadmapItem    @relation("DependencyTo", fields: [toItemId], references: [id], onDelete: Cascade)
+  type       DependencyType @default(FINISH_TO_START)
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@unique([fromItemId, toItemId])
+  @@map("roadmap_dependencies")
+}
