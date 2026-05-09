@@ -67,7 +67,7 @@ export function Sidebar() {
         className={cn(
           // Same height + same border color as Topbar so the horizontal
           // line continues seamlessly across the sidebar/main boundary.
-          "flex items-center h-14 border-b border-border",
+          "flex items-center h-16 border-b border-border",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}
       >
