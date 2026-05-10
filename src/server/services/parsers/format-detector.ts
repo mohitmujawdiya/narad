@@ -5,7 +5,7 @@ const JD_URL_PATTERNS = [
   /https?:\/\/(?:jobs|boards)\.greenhouse\.io\/[\w-]+\/jobs\/\d+/i,
   /https?:\/\/jobs\.lever\.co\/[\w-]+\/[\w-]+/i,
   /https?:\/\/jobs\.ashbyhq\.com\/[\w-]+\/[\w-]+/i,
-  /https?:\/\/[\w-]+\.myworkdayjobs\.com\/[\w-]+\/job\//i,
+  /https?:\/\/[\w.-]+\.myworkdayjobs\.com\/[\w-]+\/job\//i,
   /https?:\/\/(?:www\.)?linkedin\.com\/jobs\/view\/\d+/i,
   /https?:\/\/[\w.-]+\/jobs\/[\w-]+/i,
 ];

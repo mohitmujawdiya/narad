@@ -60,7 +60,7 @@ describe("detectFormat", () => {
   it("classifies a Workday JD URL as jd-url", () => {
     expect(
       detectFormat(
-        "https://nvidia.myworkdayjobs.com/External/job/SantaClara",
+        "https://nvidia.wd5.myworkdayjobs.com/External/job/SantaClara/Senior-Engineer_JR123",
       ).format,
     ).toBe("jd-url");
   });
