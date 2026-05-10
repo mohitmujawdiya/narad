@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Send, ChevronDown, Pencil, X } from "lucide-react";
 import type { PursuitWithDecodedJson } from "@/server/types/pursuit";
+import { AiDraftDialog } from "@/components/pursuits/ai-draft-dialog";
 
 type AdapterId = "mailto" | "clipboard" | "plain-log";
 const ADAPTERS: { id: AdapterId; label: string }[] = [
@@ -30,19 +31,11 @@ export function OutreachTab({ pursuit }: { pursuit: PursuitWithDecodedJson }) {
   const [editing, setEditing] = useState(false);
   const [draftSubject, setDraftSubject] = useState("");
   const [draftBody, setDraftBody] = useState("");
-  const [goal, setGoal] = useState("");
-  const [channel, setChannel] = useState<"email" | "linkedin">(
-    pursuit.outreachChannel === "linkedin" ? "linkedin" : "email",
-  );
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
   const [pendingAdapter, setPendingAdapter] = useState<AdapterId | null>(null);
 
-  const draft = trpc.pursuits.draftOutreach.useMutation({
-    onSuccess: () => {
-      toast.success("Draft generated");
-      void utils.pursuits.byId.invalidate({ id: pursuit.id });
-    },
-    onError: (e) => toast.error(e.message),
-  });
+  const defaultDraftChannel: "email" | "linkedin" =
+    pursuit.outreachChannel === "linkedin" ? "linkedin" : "email";
 
   const save = trpc.pursuits.saveOutreachDraft.useMutation({
     onSuccess: () => {
@@ -137,64 +130,43 @@ export function OutreachTab({ pursuit }: { pursuit: PursuitWithDecodedJson }) {
   // No draft yet — show the prompt-and-generate UI.
   if (!hasDraft) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Draft outreach</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-md border border-dashed border-border p-4 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              No outreach draft yet. (The full AI-draft dialog with template
-              selection lands in Task 22 — for now, generate inline below.)
-            </p>
-            <div className="grid gap-2">
-              <Label htmlFor="goal" className="text-xs">
-                Goal (optional)
-              </Label>
-              <Textarea
-                id="goal"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                rows={2}
-                placeholder="e.g. land a 20-min intro call about their AI infra hiring."
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1 text-xs">
-                {(["email", "linkedin"] as const).map((c) => (
-                  <Button
-                    key={c}
-                    size="sm"
-                    variant={channel === c ? "default" : "outline"}
-                    onClick={() => setChannel(c)}
-                  >
-                    {c}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                onClick={() =>
-                  draft.mutate({
-                    id: pursuit.id,
-                    channel,
-                    goal: goal.trim() || undefined,
-                  })
-                }
-                disabled={draft.isPending}
-              >
+      <>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Draft outreach</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border border-dashed border-border p-4 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                No outreach draft yet. Generate one with AI, grounded in the
+                pursuit&apos;s research and your CV.
+              </p>
+              <Button onClick={() => setDraftDialogOpen(true)}>
                 <Sparkles className="size-4" />
-                {draft.isPending ? "Drafting…" : "Draft outreach"}
+                Draft outreach
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        <AiDraftDialog
+          pursuitId={pursuit.id}
+          defaultChannel={defaultDraftChannel}
+          open={draftDialogOpen}
+          onOpenChange={setDraftDialogOpen}
+        />
+      </>
     );
   }
 
   // Draft exists — show the editable view + meta + send controls.
   return (
     <div className="space-y-4">
+      <AiDraftDialog
+        pursuitId={pursuit.id}
+        defaultChannel={defaultDraftChannel}
+        open={draftDialogOpen}
+        onOpenChange={setDraftDialogOpen}
+      />
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div className="space-y-1">
@@ -359,15 +331,7 @@ export function OutreachTab({ pursuit }: { pursuit: PursuitWithDecodedJson }) {
               <Button
                 size="sm"
                 variant="ghost"
-                disabled={draft.isPending}
-                onClick={() => {
-                  if (confirm("Regenerate outreach? This replaces the current draft."))
-                    draft.mutate({
-                      id: pursuit.id,
-                      channel:
-                        pursuit.outreachChannel === "linkedin" ? "linkedin" : "email",
-                    });
-                }}
+                onClick={() => setDraftDialogOpen(true)}
               >
                 <Sparkles className="size-3.5" />
                 Re-draft
