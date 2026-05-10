@@ -1,0 +1,10 @@
+{
+  "name": "narad",
+  "version": "0.3.0",
+  "description": "Outbound + inbound job pipeline GUI as a Claude Code plugin. Pursuit-first model, SQLite local data, OpenAI-powered drafting and research.",
+  "skills": [
+    "skills/narad-open.md",
+    "skills/narad-evaluate.md",
+    "skills/narad-pursuits.md"
+  ]
+}
