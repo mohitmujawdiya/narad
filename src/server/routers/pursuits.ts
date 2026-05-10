@@ -269,4 +269,33 @@ export const pursuitsRouter = router({
       const updated = await db.pursuit.findUniqueOrThrow({ where: { id: input.id } });
       return decodePursuit(updated);
     }),
+
+  summary: publicProcedure.query(async () => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [profile, awaiting, repliedRecent, byStatus, drafts] = await Promise.all([
+      db.profile.findUniqueOrThrow({ where: { id: "singleton" } }),
+      db.pursuit.count({ where: { outreachSentAt: { not: null }, outreachRepliedAt: null } }),
+      db.pursuit.count({ where: { outreachRepliedAt: { gte: sevenDaysAgo } } }),
+      db.pursuit.groupBy({ by: ["status"], _count: { _all: true } }),
+      db.pursuit.findMany({
+        where: { outreachBody: { not: null }, outreachSentAt: null },
+        select: { outreachConfidence: true },
+      }),
+    ]);
+
+    const sendDefaults = profile.sendDefaults ? (JSON.parse(profile.sendDefaults) as { confidenceThreshold?: number }) : {};
+    const threshold = sendDefaults.confidenceThreshold ?? 75;
+    const highConfidence = drafts.filter((d) => (d.outreachConfidence ?? 0) >= threshold).length;
+    const flagged = drafts.length - highConfidence;
+    const total = byStatus.reduce((acc, s) => acc + s._count._all, 0);
+
+    return {
+      queue: { total: drafts.length, highConfidence, flagged, threshold },
+      inbox: { awaiting, repliedLast7d: repliedRecent },
+      pursuits: {
+        total,
+        byStatus: byStatus.map((s) => ({ status: s.status, count: s._count._all })),
+      },
+    };
+  }),
 });
