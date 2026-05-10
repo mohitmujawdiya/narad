@@ -1,20 +1,26 @@
-import type { Touchpoint, Message, Contact, Profile } from "@prisma/client";
+import type { Pursuit, Profile } from "@prisma/client";
 
 export type SendInput = {
-  touchpoint: Touchpoint;
-  message: Message;
-  contact: Contact;
+  pursuit: Pursuit;
   profile: Profile;
 };
 
 export type SendResult =
-  | { kind: "sent"; externalId: string | null; sentAt: Date; meta?: Record<string, unknown> }
-  | { kind: "queued-for-manual"; instructions: string; mailtoUrl?: string; copyToClipboard?: string; openUrl?: string }
+  | { kind: "sent"; externalId: string | null; sentAt: Date }
+  | {
+      kind: "queued-for-manual";
+      instructions: string;
+      mailtoUrl?: string;
+      copyToClipboard?: string;
+      openUrl?: string;
+    }
   | { kind: "logged"; sentAt: Date }
   | { kind: "failed"; error: string };
 
+export type AdapterId = "gmail" | "mailto" | "clipboard" | "plain-log";
+
 export interface SendAdapter {
-  readonly id: "gmail" | "mailto" | "clipboard" | "plain-log";
+  readonly id: AdapterId;
   readonly label: string;
   send(input: SendInput): Promise<SendResult>;
 }

@@ -1,111 +1,188 @@
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { db } from "@/server/db";
-import { draftMessageWithAI } from "@/server/services/drafting-engine";
+import { draftOutreachWithAI } from "@/server/services/drafting-engine";
 
-const openaiJsonMock = vi.fn();
+// Mock the AI adapter at the import-from-test path. Tests don't hit OpenAI.
 vi.mock("@/server/services/ai/openai-chat", () => ({
-  openaiJson: (...args: unknown[]) => openaiJsonMock(...args),
+  openaiJson: vi.fn(),
 }));
 
-beforeAll(async () => {
-  await db.profile.upsert({
-    where: { id: "singleton" },
-    update: { narrative: "AI builder", signature: "— Mohit" },
-    create: { id: "singleton", narrative: "AI builder", signature: "— Mohit" },
-  });
-});
+import { openaiJson } from "@/server/services/ai/openai-chat";
+const mockedOpenaiJson = vi.mocked(openaiJson);
 
-beforeEach(() => {
-  openaiJsonMock.mockReset();
+async function clean(): Promise<void> {
+  await db.activityLog.deleteMany({});
+  await db.researchCache.deleteMany({});
+  await db.pursuit.deleteMany({});
+  await db.profile.deleteMany({});
+}
+
+beforeEach(async () => {
+  await clean();
+  mockedOpenaiJson.mockReset();
 });
 
 afterEach(async () => {
-  await db.message.deleteMany();
-  await db.touchpoint.deleteMany();
-  await db.contact.deleteMany();
-  await db.company.deleteMany();
+  await clean();
 });
 
-async function setup() {
-  const company = await db.company.create({ data: { name: "Stripe", domain: "stripe.com", sector: "fintech" } });
-  const contact = await db.contact.create({
-    data: { companyId: company.id, name: "Jane Doe", role: "PM", email: "jane@stripe.com" },
-  });
-  const template = await db.template.findFirstOrThrow({ where: { name: "linkedin-peer" } });
-  return { company, contact, template };
+function cannedDraft(overrides: Record<string, unknown> = {}) {
+  return {
+    data: {
+      message: "Hi Jane,\n\nI saw your Mar 2026 post on infra cost — quick thought.\n\nBest,\nMohit",
+      subject: "Quick thought on your infra-cost post",
+      confidenceScore: 88,
+      reasoning: "Names a specific recent post by date.",
+      hookUsed: "Founder Mar 2026 LinkedIn post on infra cost",
+      ...overrides,
+    },
+    meta: { provider: "openai" as const, model: "gpt-5.5", latencyMs: 12 },
+  };
 }
 
-describe("draftMessageWithAI", () => {
-  it("creates a Drafted Touchpoint with OpenAI output", async () => {
-    const { contact, template } = await setup();
-    openaiJsonMock.mockResolvedValue({
+async function seedProfile(): Promise<void> {
+  await db.profile.create({
+    data: {
+      id: "singleton",
+      narrative: "Backend infra engineer",
+      cvMarkdown: "# CV",
+      archetypes: JSON.stringify([{ name: "infra", weight: 1 }]),
+      visaDisclosurePolicy: "never-proactive",
+      signature: "— Mohit",
+    },
+  });
+}
+
+describe("draftOutreachWithAI", () => {
+  it("calls openaiJson with system + user containing pursuit fields and writes all 6 outreach columns", async () => {
+    await seedProfile();
+    const pursuit = await db.pursuit.create({
       data: {
-        message: "Hi Jane — saw the recent Stripe Issuing post...",
-        subject: null,
-        confidenceScore: 82,
-        reasoning: "Founder's recent post on infra cost is a strong hook",
-        hookUsed: "Founder Mar 2026 post on Stripe Issuing infra",
+        type: "company",
+        companyName: "Acme Robotics",
+        companyDomain: "acme.example",
+        contactName: "Jane Doe",
+        contactRole: "Founding Engineer",
+        contactEmail: "jane@acme.example",
+        notes: "Met at YC W26 demo day.",
       },
-      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 1200 },
     });
 
-    const tp = await draftMessageWithAI({ contactId: contact.id, channel: "linkedin", templateId: template.id });
+    mockedOpenaiJson.mockResolvedValueOnce(cannedDraft() as never);
 
-    expect(tp.status).toBe("Drafted");
-    expect(tp.message?.body).toContain("Stripe Issuing");
-    expect(tp.message?.draftConfidence).toBe(82);
-    expect(tp.message?.draftedBy).toBe("gpt-5.5");
-    expect(tp.message?.reasoning).toContain("hook");
+    const result = await draftOutreachWithAI({
+      pursuitId: pursuit.id,
+      channel: "email",
+      goal: "Ask if they're open to a 15-min call.",
+    });
+
+    expect(mockedOpenaiJson).toHaveBeenCalledTimes(1);
+    const callArg = mockedOpenaiJson.mock.calls[0][0] as {
+      system: string;
+      user: string;
+      model: string;
+    };
+    expect(callArg.model).toBe("gpt-5.5");
+    expect(callArg.system).toContain("CONFIDENCE RUBRIC");
+    expect(callArg.user).toContain("Acme Robotics");
+    expect(callArg.user).toContain("Jane Doe");
+    expect(callArg.user).toContain("Founding Engineer");
+    expect(callArg.user).toContain("acme.example");
+    expect(callArg.user).toContain("Met at YC W26 demo day.");
+    // No JD block for company pursuits
+    expect(callArg.user).not.toContain("JOB POSTING CONTEXT");
+    // Email channel guidance
+    expect(callArg.user).toContain("CHANNEL: Email");
+    // Goal block included
+    expect(callArg.user).toContain("Ask if they're open to a 15-min call.");
+
+    // Returned shape
+    expect(result.subject).toBe("Quick thought on your infra-cost post");
+    expect(result.body).toContain("Mar 2026");
+    expect(result.confidence).toBe(88);
+    expect(result.reasoning).toBe("Names a specific recent post by date.");
+    expect(result.hookUsed).toBe("Founder Mar 2026 LinkedIn post on infra cost");
+
+    // Pursuit row updated with all 6 outreach columns
+    const reloaded = await db.pursuit.findUniqueOrThrow({ where: { id: pursuit.id } });
+    expect(reloaded.outreachSubject).toBe("Quick thought on your infra-cost post");
+    expect(reloaded.outreachBody).toContain("Mar 2026");
+    expect(reloaded.outreachChannel).toBe("email");
+    expect(reloaded.outreachConfidence).toBe(88);
+    expect(reloaded.outreachReasoning).toBe("Names a specific recent post by date.");
+    expect(reloaded.outreachHookUsed).toBe("Founder Mar 2026 LinkedIn post on infra cost");
+
+    // One outreach-drafted activity
+    const logs = await db.activityLog.findMany({
+      where: { type: "outreach-drafted", pursuitId: pursuit.id },
+    });
+    expect(logs.length).toBe(1);
   });
 
-  it("clamps confidence to 0-100 if model returns out-of-range", async () => {
-    const { contact, template } = await setup();
-    openaiJsonMock.mockResolvedValue({
+  it("includes JD excerpt block in the user prompt for type='job' pursuits with jdMarkdown", async () => {
+    await seedProfile();
+    const pursuit = await db.pursuit.create({
       data: {
-        message: "x",
-        subject: null,
-        confidenceScore: 150,
-        reasoning: "r",
-        hookUsed: "h",
+        type: "job",
+        companyName: "Acme Robotics",
+        contactName: "Jane Doe",
+        jdTitle: "Founding Backend Engineer",
+        jdUrl: "https://acme.example/jobs/123",
+        jdMarkdown: "We are hiring a founding backend engineer to build our distributed control plane in Rust.",
       },
-      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
     });
-    const tp = await draftMessageWithAI({ contactId: contact.id, channel: "linkedin", templateId: template.id });
-    expect(tp.message?.draftConfidence).toBe(100);
+
+    mockedOpenaiJson.mockResolvedValueOnce(cannedDraft() as never);
+
+    await draftOutreachWithAI({
+      pursuitId: pursuit.id,
+      channel: "email",
+    });
+
+    const callArg = mockedOpenaiJson.mock.calls[0][0] as { user: string };
+    expect(callArg.user).toContain("JOB POSTING CONTEXT");
+    expect(callArg.user).toContain("Founding Backend Engineer");
+    expect(callArg.user).toContain("distributed control plane in Rust");
   });
 
-  it("logs activity with type touchpoint-drafted", async () => {
-    const { contact, template } = await setup();
-    openaiJsonMock.mockResolvedValue({
-      data: { message: "x", subject: null, confidenceScore: 80, reasoning: "r", hookUsed: "h" },
-      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
+  it("does NOT include JD block for type='company' pursuits", async () => {
+    await seedProfile();
+    const pursuit = await db.pursuit.create({
+      data: {
+        type: "company",
+        companyName: "Acme Robotics",
+      },
     });
-    await draftMessageWithAI({ contactId: contact.id, channel: "linkedin", templateId: template.id });
-    const logs = await db.activityLog.findMany({ where: { contactId: contact.id } });
-    expect(logs.some((l) => l.type === "touchpoint-drafted")).toBe(true);
+
+    mockedOpenaiJson.mockResolvedValueOnce(cannedDraft() as never);
+
+    await draftOutreachWithAI({ pursuitId: pursuit.id, channel: "email" });
+
+    const callArg = mockedOpenaiJson.mock.calls[0][0] as { user: string };
+    expect(callArg.user).not.toContain("JOB POSTING CONTEXT");
   });
 
-  it("works without a template (channel + optional goal)", async () => {
-    const { contact } = await setup();
-    openaiJsonMock.mockResolvedValue({
-      data: {
-        message: "From-scratch message",
-        subject: null,
-        confidenceScore: 75,
-        reasoning: "no-template path",
-        hookUsed: "test",
-      },
-      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 100 },
+  it("clamps confidence into 0..100 and forces subject=null on linkedin channel", async () => {
+    await seedProfile();
+    const pursuit = await db.pursuit.create({
+      data: { type: "company", companyName: "Acme Robotics" },
     });
 
-    const tp = await draftMessageWithAI({
-      contactId: contact.id,
+    mockedOpenaiJson.mockResolvedValueOnce(
+      cannedDraft({ confidenceScore: 250, subject: "should be discarded" }) as never,
+    );
+
+    const result = await draftOutreachWithAI({
+      pursuitId: pursuit.id,
       channel: "linkedin",
-      goal: "test goal",
     });
 
-    expect(tp.status).toBe("Drafted");
-    expect(tp.message?.body).toBe("From-scratch message");
-    expect(tp.message?.templateId).toBeNull();
+    expect(result.confidence).toBe(100);
+    expect(result.subject).toBeNull();
+
+    const reloaded = await db.pursuit.findUniqueOrThrow({ where: { id: pursuit.id } });
+    expect(reloaded.outreachSubject).toBeNull();
+    expect(reloaded.outreachChannel).toBe("linkedin");
+    expect(reloaded.outreachConfidence).toBe(100);
   });
 });

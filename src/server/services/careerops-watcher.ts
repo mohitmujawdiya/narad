@@ -41,7 +41,7 @@ export async function syncCareerOpsToProfile(careerOpsPath: string): Promise<voi
     where: { id: "singleton" },
     data: {
       cvMarkdown: data.cvMarkdown ?? undefined,
-      archetypes: data.archetypes === null ? undefined : (data.archetypes as object),
+      archetypes: data.archetypes === null ? undefined : JSON.stringify(data.archetypes),
       narrative: data.narrative ?? undefined,
     },
   });

@@ -2,150 +2,101 @@ import { test, expect } from "@playwright/test";
 import { config } from "dotenv";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 config({ path: path.resolve(__dirname, "../.env.local"), override: true });
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const url = process.env.DATABASE_URL ?? "file:./narad.db";
+const filePath = url.replace(/^file:/, "");
+const adapter = new PrismaBetterSqlite3({ url: filePath });
 const db = new PrismaClient({ adapter });
 
-const STAMP = Date.now().toString(36);
-const COMPANY_NAME = `E2eco ${STAMP}`;
-const DOMAIN = `e2eco-${STAMP}.test`;
-const URL_INPUT = `https://${DOMAIN}`;
-const CONTACT_NAME = `E2e Tester ${STAMP}`;
-const ROLE = "PM";
-const EMAIL = `e2e-${STAMP}@${DOMAIN}`;
+// We import https://anthropic.com via the single-url parser. deriveNameFromHost
+// turns "anthropic.com" into "Anthropic" — so we identify our test rows by that
+// exact companyDomain to keep cleanup tight.
+const TEST_DOMAIN = "anthropic.com";
+const TEST_URL = "https://anthropic.com";
 
 test.describe.configure({ mode: "serial" });
 
+test.beforeEach(async () => {
+  await db.pursuit.deleteMany({ where: { companyDomain: TEST_DOMAIN } });
+});
+
 test.afterAll(async () => {
-  // Cleanup: remove the company we created (cascades to contacts, touchpoints, messages, activity logs)
-  await db.company.deleteMany({ where: { domain: DOMAIN } });
+  await db.pursuit.deleteMany({ where: { companyDomain: TEST_DOMAIN } });
   await db.$disconnect();
 });
 
-test("daily ritual end-to-end through the GUI", async ({ page }) => {
+test("daily ritual: paste URL → kanban → detail tabs", async ({ page }) => {
   // ─── Step 1: Sidebar nav present on /
-  await test.step("dashboard renders with sidebar", async () => {
+  await test.step("dashboard renders with redesign-v2 sidebar", async () => {
     await page.goto("/");
-    await expect(page.getByRole("link", { name: "Narad" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Companies" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Pursuits" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Queue" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Inbox" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
     await page.screenshot({ path: "e2e-screenshots/01-dashboard.png", fullPage: true });
   });
 
-  // ─── Step 2: Create company via URL drop
-  await test.step("add company via URL", async () => {
-    await page.getByRole("link", { name: "Companies" }).click();
-    await expect(page.getByRole("heading", { name: "Companies" })).toBeVisible();
-    await page.getByRole("link", { name: /Add company/i }).click();
+  // ─── Step 2: Create a pursuit by pasting a URL
+  await test.step("import pursuit via paste field", async () => {
+    await page.goto("/pursuits/new");
+    await expect(page.getByRole("heading", { name: "Add pursuit" })).toBeVisible();
 
-    await expect(page.getByRole("heading", { name: "Add company" })).toBeVisible();
-    await page.getByLabel("Company URL").fill(URL_INPUT);
-    await page.getByRole("button", { name: "Add company" }).click();
+    await page.getByLabel("Paste source").fill(TEST_URL);
+    // Wait for format detection to fire (debounced 300ms)
+    await expect(page.getByText(/Single company URL/i)).toBeVisible({ timeout: 5_000 });
 
-    // After redirect to /companies/[id] — give Next.js time to compile the route on first hit
-    await expect(page).toHaveURL(/\/companies\/[a-z0-9]+/i);
-    await expect(page.getByText(/E2eco/i).first()).toBeVisible({ timeout: 30_000 });
-    await page.screenshot({ path: "e2e-screenshots/02-company-detail.png", fullPage: true });
+    await page.getByRole("button", { name: "Import" }).click();
+
+    // Import summary card appears with "Inserted: 1"
+    await expect(page.getByText(/Inserted:\s*1/i)).toBeVisible({ timeout: 30_000 });
+    await page.screenshot({ path: "e2e-screenshots/02-pursuit-imported.png", fullPage: true });
   });
 
-  // ─── Step 3: Add a contact
-  await test.step("add contact in dialog", async () => {
-    await page.getByRole("tab", { name: /Contacts/i }).click();
-    await page.getByRole("button", { name: /Add contact/i }).click();
+  // ─── Step 3: New pursuit shows up on the kanban
+  await test.step("kanban shows the new pursuit in Saved column", async () => {
+    await page.goto("/pursuits");
+    await page.waitForLoadState("networkidle");
 
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    // Card is a link to /pursuits/[id]; companyName is "Anthropic"
+    const card = page.getByRole("link", { name: /^anthropic$/i }).first();
+    await expect(card).toBeVisible({ timeout: 10_000 });
+    await page.screenshot({ path: "e2e-screenshots/03-kanban.png", fullPage: true });
 
-    // Inputs in order: Name (textbox), Role (textbox), Email (email), LinkedIn URL (textbox),
-    // Twitter URL (textbox), Notes (textarea). Use positional locators because the inputs
-    // lack id/htmlFor pairing.
-    const inputs = dialog.locator("input");
-    await inputs.nth(0).fill(CONTACT_NAME); // Name
-    await inputs.nth(1).fill(ROLE);          // Role
-    await inputs.nth(2).fill(EMAIL);         // Email
-    await dialog.getByRole("button", { name: /^Add$/ }).click();
-
-    // Dialog closes; contact appears in list
-    await expect(page.getByRole("link", { name: CONTACT_NAME })).toBeVisible({ timeout: 10_000 });
-    await page.screenshot({ path: "e2e-screenshots/03-contact-added.png", fullPage: true });
+    await card.click();
   });
 
-  // ─── Step 4: Open contact, draft message
-  await test.step("draft message via template", async () => {
-    await page.getByRole("link", { name: CONTACT_NAME }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(CONTACT_NAME);
+  // ─── Step 4: Pursuit detail page renders Overview by default
+  await test.step("pursuit detail renders header + tabs", async () => {
+    await expect(page).toHaveURL(/\/pursuits\/[a-z0-9]+/i);
 
-    await page.getByRole("button", { name: /Draft message/i }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    // Header heading is companyName at h2 level
+    await expect(
+      page.getByRole("heading", { level: 2, name: /^anthropic$/i }),
+    ).toBeVisible();
 
-    // Default channel is email; body is the only textarea in the dialog at this point.
-    const bodyEditor = dialog.locator("textarea");
-    await bodyEditor.fill(
-      `Hi ${CONTACT_NAME.split(" ")[0]},\n\nThis is an end-to-end test message.\n\n— Test`
-    );
-    await dialog.getByRole("button", { name: /Save to queue/i }).click();
+    // Default tab is Overview; tab list is present
+    await expect(page.getByRole("tab", { name: "Overview" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Research" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Outreach" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Notes" })).toBeVisible();
 
-    // After save → redirect to /queue
-    await expect(page).toHaveURL(/\/queue/);
-    await page.screenshot({ path: "e2e-screenshots/04-queue-after-draft.png", fullPage: true });
+    // Switching to Notes shouldn't crash and should show the textarea
+    await page.getByRole("tab", { name: "Notes" }).click();
+    await expect(page.locator("textarea").first()).toBeVisible({ timeout: 5_000 });
+    await page.screenshot({ path: "e2e-screenshots/04-pursuit-detail.png", fullPage: true });
   });
 
-  // ─── Step 5: Send via plain-log from queue
-  await test.step("send via plain-log adapter", async () => {
-    // The queue is showing our card; trigger the dropdown to pick plain-log
-    await expect(page.getByText(CONTACT_NAME)).toBeVisible();
-
-    // Click the chevron-down to open adapter dropdown (it's the 2nd button after "Send")
-    const chevronButtons = page.getByRole("button").filter({ has: page.locator("svg.lucide-chevron-down") });
-    await chevronButtons.first().click();
-
-    await page.getByRole("menuitem", { name: /Already sent \(just log\)/i }).click();
-
-    // Wait for the toast
-    await expect(page.getByText("Logged as sent")).toBeVisible({ timeout: 5000 });
-    await page.screenshot({ path: "e2e-screenshots/05-after-send.png", fullPage: true });
-  });
-
-  // ─── Step 6: Inbox shows the touchpoint awaiting reply
-  await test.step("inbox shows awaiting reply", async () => {
-    await page.getByRole("link", { name: "Inbox" }).click();
-    await expect(page.getByRole("heading", { name: "Awaiting reply" })).toBeVisible();
-    await expect(page.getByText(CONTACT_NAME)).toBeVisible();
-    await page.screenshot({ path: "e2e-screenshots/06-inbox-awaiting.png", fullPage: true });
-  });
-
-  // ─── Step 7: Log a reply
-  await test.step("log a reply via dialog", async () => {
-    await page.getByRole("button", { name: /Log reply/i }).first().click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-
-    // Reply snippet textarea (only textarea in this dialog)
-    await dialog.locator("textarea").fill("Yes, let's chat next week.");
-    await dialog.getByRole("button", { name: /Log as replied/i }).click();
-
-    await expect(page.getByText("Reply logged")).toBeVisible({ timeout: 5000 });
-
-    // Now it should appear under "Recently replied"
-    await expect(page.getByRole("heading", { name: "Recently replied" })).toBeVisible();
-    await page.screenshot({ path: "e2e-screenshots/07-inbox-replied.png", fullPage: true });
-  });
-
-  // ─── Step 8: Verify in DB the touchpoint is Replied
-  await test.step("DB state check: touchpoint is Replied", async () => {
-    const company = await db.company.findUniqueOrThrow({
-      where: { domain: DOMAIN },
-      include: { contacts: { include: { touchpoints: true } } },
-    });
-    expect(company.contacts.length).toBe(1);
-    expect(company.contacts[0].touchpoints.length).toBe(1);
-    expect(company.contacts[0].touchpoints[0].status).toBe("Replied");
-    expect(company.contacts[0].touchpoints[0].sentAt).not.toBeNull();
-    expect(company.contacts[0].touchpoints[0].repliedAt).not.toBeNull();
+  // ─── Step 5: DB-side check — exactly one pursuit was created
+  await test.step("DB state: pursuit row exists with status Saved", async () => {
+    const rows = await db.pursuit.findMany({ where: { companyDomain: TEST_DOMAIN } });
+    expect(rows.length).toBe(1);
+    expect(rows[0].companyName).toBe("Anthropic");
+    expect(rows[0].status).toBe("Saved");
+    expect(rows[0].type).toBe("company");
   });
 });

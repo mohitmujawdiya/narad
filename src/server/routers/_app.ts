@@ -1,28 +1,12 @@
 import { router } from "../trpc";
 import { profileRouter } from "./profile";
-import { companiesRouter } from "./companies";
-import { contactsRouter } from "./contacts";
-import { researchRouter } from "./research";
-import { touchpointsRouter } from "./touchpoints";
-import { messagesRouter } from "./messages";
-import { templatesRouter } from "./templates";
-import { sendRouter } from "./send";
-import { draftingRouter } from "./drafting";
+import { pursuitsRouter } from "./pursuits";
 import { sourcesRouter } from "./sources";
-import { dashboardRouter } from "./dashboard";
 
 export const appRouter = router({
   profile: profileRouter,
-  companies: companiesRouter,
-  contacts: contactsRouter,
-  research: researchRouter,
-  touchpoints: touchpointsRouter,
-  messages: messagesRouter,
-  templates: templatesRouter,
-  send: sendRouter,
-  drafting: draftingRouter,
+  pursuits: pursuitsRouter,
   sources: sourcesRouter,
-  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;

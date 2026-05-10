@@ -1,226 +1,286 @@
+/**
+ * Research engine — Pursuit-shaped (redesign-v2 Slice 2).
+ *
+ * Runs three OpenAI Responses + web_search queries in parallel per Pursuit:
+ *   - companyOverviewPrompt
+ *   - hiringSignalPrompt
+ *   - founderContentPrompt
+ * Each result is cached in `ResearchCache` keyed by SHA-256(pursuitId+kind+prompt)
+ * with a 30d TTL. Results are packed into `Pursuit.companyResearch` (JSON), then
+ * `extractCompanyFactsFromOverview` and `scoreCompanyFit` are called to populate
+ * `companyDomain`, the `facts` block, `fitScore`, and `fitReason`.
+ */
 import { createHash } from "node:crypto";
 import { db } from "../db";
+import { logActivity } from "./activity-log";
+import {
+  decodePursuit,
+  type CompanyResearchJson,
+  type CompanyResearchFacts,
+  type ResearchEntry,
+} from "../types/pursuit";
 import { webResearch } from "./ai/web-research";
+import { openaiJson } from "./ai/openai-chat";
 import {
   companyOverviewPrompt,
   hiringSignalPrompt,
   founderContentPrompt,
   type CompanyContext,
 } from "./ai/prompts/company-research";
-import { logActivity } from "./activity-log";
-import type { ResearchResult, FitScore } from "./ai/types";
-import { openaiJson } from "./ai/openai-chat";
-import { fitScoreSystemPrompt, fitScoreUserPrompt } from "./ai/prompts/fit-score";
+import {
+  fitScoreSystemPrompt,
+  fitScoreUserPrompt,
+} from "./ai/prompts/fit-score";
 
-const CACHE_TTL_DAYS = 14;
-const CACHE_TTL_MS = CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
+const RESEARCH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const RESEARCH_FRESH_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 type ResearchKind = "overview" | "hiringSignal" | "founderContent";
 
-const PROMPT_BUILDERS: Record<ResearchKind, (c: CompanyContext) => string> = {
-  overview: companyOverviewPrompt,
-  hiringSignal: hiringSignalPrompt,
-  founderContent: founderContentPrompt,
+function cacheKey(pursuitId: string, kind: ResearchKind, prompt: string): string {
+  return createHash("sha256").update(`${pursuitId}::${kind}::${prompt}`).digest("hex");
+}
+
+async function getCached(hash: string): Promise<ResearchEntry | null> {
+  const row = await db.researchCache.findUnique({ where: { queryHash: hash } });
+  if (!row) return null;
+  if (row.expiresAt.getTime() < Date.now()) return null;
+  let citations: { title: string; url: string }[] = [];
+  if (row.citations) {
+    try {
+      citations = JSON.parse(row.citations) as { title: string; url: string }[];
+    } catch {
+      citations = [];
+    }
+  }
+  return {
+    text: row.result,
+    citations,
+    meta: { provider: "openai", model: "cache", latencyMs: 0 },
+  };
+}
+
+async function setCached(args: {
+  hash: string;
+  pursuitId: string;
+  kind: ResearchKind;
+  prompt: string;
+  entry: ResearchEntry;
+}): Promise<void> {
+  const expiresAt = new Date(Date.now() + RESEARCH_TTL_MS);
+  await db.researchCache.upsert({
+    where: { queryHash: args.hash },
+    update: {
+      result: args.entry.text,
+      citations: JSON.stringify(args.entry.citations),
+      expiresAt,
+      query: args.prompt,
+      source: "openai",
+    },
+    create: {
+      queryHash: args.hash,
+      source: "openai",
+      query: args.prompt,
+      result: args.entry.text,
+      citations: JSON.stringify(args.entry.citations),
+      expiresAt,
+    },
+  });
+  await logActivity({
+    type: "research-cached",
+    pursuitId: args.pursuitId,
+    payload: { kind: args.kind },
+  });
+}
+
+async function runOrCache(args: {
+  pursuitId: string;
+  kind: ResearchKind;
+  prompt: string;
+}): Promise<ResearchEntry> {
+  const hash = cacheKey(args.pursuitId, args.kind, args.prompt);
+  const cached = await getCached(hash);
+  if (cached) return cached;
+
+  const result = await webResearch({ prompt: args.prompt });
+  const entry: ResearchEntry = {
+    text: result.text,
+    citations: result.citations.map((c) => ({ title: c.title, url: c.url })),
+    meta: result.meta,
+  };
+  await setCached({
+    hash,
+    pursuitId: args.pursuitId,
+    kind: args.kind,
+    prompt: args.prompt,
+    entry,
+  });
+  return entry;
+}
+
+/** True if existing research was refreshed within the freshness window. */
+function isFresh(research: CompanyResearchJson | null): boolean {
+  if (!research?.refreshedAt) return false;
+  const refreshedMs = Date.parse(research.refreshedAt);
+  if (Number.isNaN(refreshedMs)) return false;
+  return Date.now() - refreshedMs < RESEARCH_FRESH_MS;
+}
+
+/**
+ * Runs the 3-query research bundle for a Pursuit, packs into companyResearch
+ * JSON, persists, then runs fact extraction + fit scoring.
+ */
+export async function researchPursuit(
+  pursuitId: string,
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  const pursuit = await db.pursuit.findUniqueOrThrow({ where: { id: pursuitId } });
+  const decoded = decodePursuit(pursuit);
+
+  if (!opts.force && isFresh(decoded.companyResearch)) {
+    return;
+  }
+
+  const ctx: CompanyContext = {
+    name: pursuit.companyName,
+    domain: pursuit.companyDomain ?? null,
+  };
+
+  const overviewQ = companyOverviewPrompt(ctx);
+  const hiringQ = hiringSignalPrompt(ctx);
+  const founderQ = founderContentPrompt(ctx);
+
+  const [overview, hiringSignal, founderContent] = await Promise.all([
+    runOrCache({ pursuitId, kind: "overview", prompt: overviewQ }),
+    runOrCache({ pursuitId, kind: "hiringSignal", prompt: hiringQ }),
+    runOrCache({ pursuitId, kind: "founderContent", prompt: founderQ }),
+  ]);
+
+  const now = new Date();
+  const companyResearch: CompanyResearchJson = {
+    overview,
+    hiringSignal,
+    founderContent,
+    refreshedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + RESEARCH_TTL_MS).toISOString(),
+  };
+
+  await db.pursuit.update({
+    where: { id: pursuitId },
+    data: { companyResearch: JSON.stringify(companyResearch) },
+  });
+
+  await extractCompanyFactsFromOverview(pursuitId, overview.text);
+  await scoreCompanyFit(pursuitId);
+}
+
+const FACT_EXTRACT_SYSTEM = `You extract structured facts from a short plain-English company overview. Output ONLY a JSON object with these keys: {"companyDomain": string|null, "headcount": string|null, "stage": string|null, "sector": string|null}. Use null when the fact is absent or unclear. companyDomain is the bare host (e.g., "stripe.com"), no protocol. Do not invent.`;
+
+type ExtractedFacts = {
+  companyDomain: string | null;
+  headcount: string | null;
+  stage: string | null;
+  sector: string | null;
 };
 
 /**
- * Run all 3 research queries for a company (cached) and persist the latest
- * snapshot to CompanyResearch. Transitions company.status to Researched.
- * Idempotent: callable repeatedly without re-querying within TTL.
- */
-export async function researchCompany(companyId: string): Promise<void> {
-  await runResearch(companyId, { useCache: true });
-}
-
-/**
- * Force re-fetch (ignore cache). Used by the manual refresh button.
- */
-export async function refreshCompanyResearch(companyId: string): Promise<void> {
-  await runResearch(companyId, { useCache: false });
-}
-
-async function runResearch(companyId: string, opts: { useCache: boolean }): Promise<void> {
-  const company = await db.company.findUniqueOrThrow({ where: { id: companyId } });
-  const ctx: CompanyContext = { name: company.name, domain: company.domain };
-
-  const kinds: ResearchKind[] = ["overview", "hiringSignal", "founderContent"];
-
-  const results = await Promise.all(
-    kinds.map(async (kind) => {
-      const prompt = PROMPT_BUILDERS[kind](ctx);
-      const queryHash = hashQuery({ companyId, kind, prompt });
-
-      if (opts.useCache) {
-        const cached = await db.researchCache.findUnique({ where: { queryHash } });
-        if (cached && cached.expiresAt > new Date()) {
-          return { kind, result: cached.result as unknown as ResearchResult };
-        }
-      }
-
-      const result = await webResearch({ prompt });
-
-      await db.researchCache.upsert({
-        where: { queryHash },
-        update: {
-          result: serializeResult(result),
-          citations: result.citations as unknown as object,
-          expiresAt: new Date(Date.now() + CACHE_TTL_MS),
-        },
-        create: {
-          queryHash,
-          source: "openai-web-search",
-          query: prompt,
-          result: serializeResult(result),
-          citations: result.citations as unknown as object,
-          expiresAt: new Date(Date.now() + CACHE_TTL_MS),
-        },
-      });
-
-      return { kind, result };
-    }),
-  );
-
-  const byKind = results.reduce<Record<string, ResearchResult>>((acc, r) => {
-    acc[r.kind] = r.result;
-    return acc;
-  }, {});
-
-  await db.companyResearch.upsert({
-    where: { companyId },
-    update: {
-      overview: serializeResult(byKind.overview),
-      hiringSignal: serializeResult(byKind.hiringSignal),
-      founderContent: serializeResult(byKind.founderContent),
-      refreshedAt: new Date(),
-      expiresAt: new Date(Date.now() + CACHE_TTL_MS),
-    },
-    create: {
-      companyId,
-      overview: serializeResult(byKind.overview),
-      hiringSignal: serializeResult(byKind.hiringSignal),
-      founderContent: serializeResult(byKind.founderContent),
-      expiresAt: new Date(Date.now() + CACHE_TTL_MS),
-    },
-  });
-
-  await db.company.update({
-    where: { id: companyId },
-    data: company.status === "Discovered" ? { status: "Researched" } : {},
-  });
-
-  await logActivity({
-    type: "research-cached",
-    companyId,
-    payload: { fromCache: !opts.useCache ? false : "mixed", kinds },
-  });
-
-  // Hydrate the Company row from the research output: extract headcount,
-  // stage, sector if not already set, then re-score fit using the richer
-  // research context. Both are best-effort; failures don't block research.
-  await extractCompanyFactsFromOverview(companyId, byKind.overview?.text ?? "").catch((e) => {
-    console.warn("extractCompanyFactsFromOverview skipped:", (e as Error).message);
-  });
-  await scoreCompanyFit(companyId).catch((e) => {
-    console.warn("post-research fit score skipped:", (e as Error).message);
-  });
-}
-
-/**
- * Extract structured fields (headcount, stage, sector) from a free-form overview
- * and update the Company row. Only fills fields that are currently null —
- * preserves any user-set values.
+ * Parses overview text into structured facts. Updates Pursuit.companyDomain
+ * if currently null. Persists facts inside the companyResearch JSON.
  */
 export async function extractCompanyFactsFromOverview(
-  companyId: string,
+  pursuitId: string,
   overviewText: string,
 ): Promise<void> {
   if (!overviewText.trim()) return;
 
-  const company = await db.company.findUniqueOrThrow({ where: { id: companyId } });
-
-  const result = await openaiJson<{
-    headcount: number | null;
-    stage: string | null;
-    sector: string | null;
-  }>({
-    system:
-      'Extract structured company facts from a research overview. Return JSON only: {"headcount": <integer or null>, "stage": <string or null>, "sector": <string or null>}. headcount is the best estimate as an integer (e.g., 250 for "200-300 employees"). stage is one of: "pre-seed", "seed", "series-a", "series-b", "series-c", "series-d+", "growth", "public", "private". sector is a short descriptor (e.g., "fintech", "AI infra", "developer tools", "VC firm"). Use null if a fact is not present. Do not invent.',
-    user: `Overview text:\n\n${overviewText.slice(0, 4000)}`,
+  const { data } = await openaiJson<ExtractedFacts>({
+    system: FACT_EXTRACT_SYSTEM,
+    user: `OVERVIEW:\n${overviewText}\n\nReturn JSON only.`,
     model: "gpt-5.4-mini",
-    maxTokens: 200,
   });
 
-  // Only update fields that are currently empty — don't overwrite user-set values.
-  await db.company.update({
-    where: { id: companyId },
-    data: {
-      headcount: company.headcount ?? result.data.headcount ?? undefined,
-      stage: company.stage ?? result.data.stage ?? undefined,
-      sector: company.sector ?? result.data.sector ?? undefined,
-    },
-  });
-}
+  const pursuit = await db.pursuit.findUniqueOrThrow({ where: { id: pursuitId } });
+  const decoded = decodePursuit(pursuit);
 
-function hashQuery(input: { companyId: string; kind: string; prompt: string }): string {
-  return createHash("sha256")
-    .update(`${input.companyId}|${input.kind}|${input.prompt}`)
-    .digest("hex");
-}
-
-function serializeResult(r: ResearchResult): object {
-  return {
-    text: r.text,
-    citations: r.citations,
-    meta: r.meta,
+  const facts: CompanyResearchFacts = {
+    headcount: data.headcount ?? null,
+    stage: data.stage ?? null,
+    sector: data.sector ?? null,
   };
-}
 
-/**
- * Quick fit score (Sonnet, fast). Called on Company creation if we have a Profile
- * with narrative or CV. Failures are logged but non-blocking — the Company
- * still gets created.
- */
-export async function scoreCompanyFit(companyId: string): Promise<FitScore | null> {
-  const profile = await db.profile.findUnique({ where: { id: "singleton" } });
-  if (!profile?.narrative && !profile?.cvMarkdown) return null;
+  const companyResearch: CompanyResearchJson | null = decoded.companyResearch
+    ? { ...decoded.companyResearch, facts }
+    : null;
 
-  try {
-    const company = await db.company.findUniqueOrThrow({ where: { id: companyId } });
+  const updateData: { companyDomain?: string; companyResearch?: string } = {};
+  if (!pursuit.companyDomain && data.companyDomain) {
+    updateData.companyDomain = data.companyDomain;
+  }
+  if (companyResearch) {
+    updateData.companyResearch = JSON.stringify(companyResearch);
+  }
 
-    const result = await openaiJson<{ score: number; reason: string }>({
-      system: fitScoreSystemPrompt(),
-      user: fitScoreUserPrompt({
-        profile: {
-          narrative: profile.narrative,
-          archetypes: profile.archetypes,
-          cvMarkdown: profile.cvMarkdown,
-        },
-        company: {
-          name: company.name,
-          domain: company.domain,
-          sector: company.sector,
-          stage: company.stage,
-        },
-      }),
-      model: "gpt-5.4-mini",
-      maxTokens: 200,
-    });
-
-    const score = clamp(Math.round(result.data.score), 0, 100);
-    const reason = String(result.data.reason ?? "").slice(0, 200);
-
-    await db.company.update({
-      where: { id: companyId },
-      data: { fitScore: score, fitReason: reason },
-    });
-
-    return { score, reason, meta: result.meta };
-  } catch (e) {
-    console.warn("fit-score skipped:", (e as Error).message);
-    return null;
+  if (Object.keys(updateData).length > 0) {
+    await db.pursuit.update({ where: { id: pursuitId }, data: updateData });
   }
 }
 
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, n));
+type FitScoreResult = { score: number; reason: string };
+
+/**
+ * Scores Pursuit fit against the singleton Profile. Reads the decoded
+ * companyResearch facts (sector/stage) when available. Persists score+reason
+ * onto the Pursuit row.
+ */
+export async function scoreCompanyFit(pursuitId: string): Promise<void> {
+  const pursuit = await db.pursuit.findUniqueOrThrow({ where: { id: pursuitId } });
+  const decoded = decodePursuit(pursuit);
+  const profile = await db.profile.findUnique({ where: { id: "singleton" } });
+
+  const facts = decoded.companyResearch?.facts ?? null;
+
+  const archetypes = profile?.archetypes
+    ? safeParse(profile.archetypes)
+    : null;
+
+  const userPrompt = fitScoreUserPrompt({
+    profile: {
+      narrative: profile?.narrative ?? null,
+      archetypes,
+      cvMarkdown: profile?.cvMarkdown ?? null,
+    },
+    company: {
+      name: pursuit.companyName,
+      domain: pursuit.companyDomain ?? null,
+      sector: facts?.sector ?? null,
+      stage: facts?.stage ?? null,
+    },
+  });
+
+  const { data } = await openaiJson<FitScoreResult>({
+    system: fitScoreSystemPrompt(),
+    user: userPrompt,
+    model: "gpt-5.4-mini",
+  });
+
+  const score = clampScore(data.score);
+  const reason = (data.reason ?? "").slice(0, 240);
+
+  await db.pursuit.update({
+    where: { id: pursuitId },
+    data: { fitScore: score, fitReason: reason },
+  });
+}
+
+function clampScore(n: unknown): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function safeParse(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
 }

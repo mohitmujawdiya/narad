@@ -1,38 +1,51 @@
-import type { SourceParser, ParsedTarget } from "./types";
+import type { ParsedTarget, Parser } from "./types";
 
-const URL_LINE = /^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i;
+/**
+ * Strip leading "www." and produce a capitalized name from the apex word.
+ * acme.com -> Acme · foo-bar.io -> Foo-bar
+ */
+export function deriveNameFromHost(url: string): string {
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    host = url;
+  }
+  host = host.replace(/^www\./i, "");
+  const apex = host.split(".")[0] ?? host;
+  if (!apex) return host;
+  return apex.charAt(0).toUpperCase() + apex.slice(1);
+}
 
-export const urlListParser: SourceParser = {
+export function getHostname(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./i, "");
+  } catch {
+    return null;
+  }
+}
+
+export const urlListParser: Parser = {
   format: "url-list",
-  matches(input: string): boolean {
-    const lines = input.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
-    if (lines.length < 2) return false;
-    return lines.every((l) => URL_LINE.test(l));
-  },
-  async parse(input: string): Promise<ParsedTarget[]> {
-    const lines = input.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
-    return lines.map((line) => parseLineToTarget(line));
+  parse(raw: string): ParsedTarget[] {
+    const lines = raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const seen = new Set<string>();
+    const out: ParsedTarget[] = [];
+    for (const url of lines) {
+      if (seen.has(url)) continue;
+      seen.add(url);
+      out.push({
+        type: "company",
+        companyName: deriveNameFromHost(url),
+        companyDomain: getHostname(url),
+        jdUrl: null,
+        pastedUrl: url,
+        hint: null,
+      });
+    }
+    return out;
   },
 };
-
-export function parseLineToTarget(line: string): ParsedTarget {
-  const url = line.startsWith("http") ? line : `https://${line}`;
-  let domain: string;
-  try {
-    domain = new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    domain = line;
-  }
-  const name = domain
-    .split(".")[0]
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase());
-  return {
-    name,
-    domain,
-    sourceUrl: url,
-    sector: null,
-    stage: null,
-    hint: null,
-  };
-}

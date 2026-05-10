@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export function FunnelSnapshotCard() {
-  const summary = trpc.dashboard.summary.useQuery();
+  const summary = trpc.pursuits.summary.useQuery();
   if (summary.isLoading || summary.isPending || !summary.data) {
     return (
       <Card>
@@ -38,7 +38,7 @@ export function FunnelSnapshotCard() {
     );
   }
 
-  const { inbox, companies } = summary.data;
+  const { inbox, pursuits } = summary.data;
   return (
     <Card>
       <CardHeader>
@@ -48,8 +48,7 @@ export function FunnelSnapshotCard() {
         <dl className="text-sm space-y-1">
           <div className="flex justify-between"><dt>Awaiting reply</dt><dd className="tabular-nums">{inbox.awaiting}</dd></div>
           <div className="flex justify-between"><dt>Replied (7d)</dt><dd className="tabular-nums text-primary">{inbox.repliedLast7d}</dd></div>
-          <div className="flex justify-between"><dt>Bounced (7d)</dt><dd className="tabular-nums">{inbox.bouncedLast7d}</dd></div>
-          <div className="flex justify-between border-t border-border pt-1 mt-1"><dt>Companies in pipeline</dt><dd className="tabular-nums">{companies.total}</dd></div>
+          <div className="flex justify-between border-t border-border pt-1 mt-1"><dt>Pursuits in pipeline</dt><dd className="tabular-nums">{pursuits.total}</dd></div>
         </dl>
         <Button asChild size="sm" variant="outline">
           <Link href="/inbox">Open inbox →</Link>

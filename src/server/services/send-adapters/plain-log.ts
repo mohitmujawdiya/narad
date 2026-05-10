@@ -1,9 +1,11 @@
-import type { SendAdapter } from "./types";
+import type { SendAdapter, SendInput, SendResult } from "./types";
+
+async function send(_input: SendInput): Promise<SendResult> {
+  return { kind: "logged", sentAt: new Date() };
+}
 
 export const plainLogAdapter: SendAdapter = {
   id: "plain-log",
-  label: "Already sent (just log it)",
-  async send() {
-    return { kind: "logged", sentAt: new Date() };
-  },
+  label: "Plain log (simulated send)",
+  send,
 };

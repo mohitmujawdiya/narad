@@ -2,43 +2,47 @@
 
 > Living document. Updated as we ship. The high-level status tracker that ties the immutable specs and plans together.
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-10
 
 ---
 
 ## Current state
 
-**Active plan:** [Redesign v2 — Pursuit-first model + SQLite + Claude Code plugin](superpowers/plans/2026-05-09-narad-redesign-v2.md) — 📝 **in progress**
-**Status:** A1 + A2 shipped (tags `v0.1-a1`, `v0.2-a2`) but superseded. After real use, the data model proved over-engineered. Mid-redesign as of 2026-05-09 evening: collapsing 6+ existing entities + 5 planned entities into a single `Pursuit` table; switching Postgres+Neon → SQLite; packaging as a Claude Code plugin so distribution mirrors CareerOps. All UX work (kanban, queue, optimistic updates, theme, markdown, AI prompts, send adapters) preserved. Phase B's planned scope (JD eval, CV tailoring, cover letter, story-bank) folds into Pursuit fields conditionally. Original [design spec](superpowers/specs/2026-05-09-narad-design.md) superseded by [redesign v2 spec](superpowers/specs/2026-05-09-narad-redesign-v2.md).
-**Next action:** Execute redesign-v2 plan — Slice 0 (branch + snapshot) → Slice 7 (merge + tag `v0.3-redesign`). Estimated 2-3 days subagent-driven. After redesign ships, post-redesign work covers Gmail OAuth + cadence engine + funnel analytics within the simpler model.
+**Active plan:** [Redesign v2 — Pursuit-first model + SQLite + Claude Code plugin](superpowers/plans/2026-05-09-narad-redesign-v2.md) — 🟡 **implementation complete, awaiting merge**
+**Status:** A1 + A2 superseded. Redesign v2 implementation finished on `feat/redesign-v2` (Slices 1-6 done, ready for Task 32 merge to main + tag `v0.3-redesign`). 64/64 vitest tests passing. Server + UI tsc clean. e2e specs rewritten against the Pursuit-shaped UI. Plugin manifest + skills + launcher in place. Ready for user to merge.
+**Next action:** User runs `git checkout main && git merge feat/redesign-v2 --no-ff && git tag -a v0.3-redesign -m "Pursuit-first redesign complete" && git push origin main && git push origin v0.3-redesign`. After redesign ships: post-redesign work covers Gmail OAuth + cadence engine + funnel analytics within the simpler model, and a manual end-to-end smoke test against the live dev server.
 
 ---
 
 ## Phase tracker
 
-### Phase A — Outbound core
-The outbound funnel: sourcing → research → drafting → send → tracking → follow-up.
+### Phase A — Outbound core (superseded)
+A1 + A2 shipped as Postgres + multi-table CRM-style data model. Real-use feedback showed the model was over-engineered for a single-user job search. Both supersede by Redesign v2.
 
 | Sub-plan | Status | Plan doc | Start | Ship | Tag |
 |---|---|---|---|---|---|
-| **A1 — Foundation + Manual Daily Ritual** | ✅ Shipped | [2026-05-09-narad-phase-a1.md](superpowers/plans/2026-05-09-narad-phase-a1.md) | 2026-05-09 | 2026-05-09 | `v0.1-a1` |
-| **A2 — AI-Driven Drafting + Sourcing** | ✅ Shipped | [2026-05-09-narad-phase-a2.md](superpowers/plans/2026-05-09-narad-phase-a2.md) | 2026-05-09 | 2026-05-09 | `v0.2-a2` |
-| **A3 — Gmail Automation + Cadence + Funnel** | ⏳ To plan after A2 ships | TBW | — | — | `v0.3-a3` |
+| **A1 — Foundation + Manual Daily Ritual** | ⛔ Superseded | [2026-05-09-narad-phase-a1.md](superpowers/plans/2026-05-09-narad-phase-a1.md) | 2026-05-09 | 2026-05-09 | `v0.1-a1` |
+| **A2 — AI-Driven Drafting + Sourcing** | ⛔ Superseded | [2026-05-09-narad-phase-a2.md](superpowers/plans/2026-05-09-narad-phase-a2.md) | 2026-05-09 | 2026-05-09 | `v0.2-a2` |
+| **A3 — Gmail Automation + Cadence + Funnel** | ⏳ Deferred to post-redesign | TBW | — | — | TBD |
 
-**A1 deliverable:** Working manual outreach loop — companies/contacts CRUD, message editor with templates, queue UI with keyboard, mailto/clipboard/plain-log send, manual reply log, CareerOps profile sync. End state: I can run the full daily ritual manually, typing my own drafts.
-
-**A2 deliverable:** AI-driven drafting and bulk sourcing — Perplexity research per company, Claude drafting with confidence scoring, sourcing parsers (YC batch / Wellfound / CSV), dashboard summary. End state: drafts are AI-generated, sourcing is paste-and-parse.
-
-**A3 deliverable:** Phase A complete — Gmail OAuth + automated send + reply polling, multi-touch cadence engine (Touch 1 → 4d → Touch 2 → 7d → Touch 3) with follow-up materializer, funnel analytics page. End state: full automated pipeline.
-
-### Phase B — Inbound port
-The inbound funnel folded into the same GUI: JD evaluation, CV tailoring, cover letter, application tracking, story-bank.
+### Redesign v2 — Pursuit-first model
+The collapsed-entity rebuild on SQLite + Claude Code plugin packaging.
 
 | Sub-plan | Status | Plan doc | Start | Ship | Tag |
 |---|---|---|---|---|---|
-| **B — Inbound port + Story-bank** | ⏳ To plan after Phase A ships | TBW | — | — | `v1.0-phase-b` |
+| **Redesign v2** | 🟡 Implementation complete, awaiting merge | [2026-05-09-narad-redesign-v2.md](superpowers/plans/2026-05-09-narad-redesign-v2.md) | 2026-05-09 | 2026-05-10 (impl) | `v0.3-redesign` |
 
-**B deliverable:** Add `JobDescription`, `Application`, `Asset`, `Story`, `StoryUsage` models. Routes: `/applications`, `/applications/[id]`, `/applications/new`, `/stories`, `/stories/[id]`, `/applications/[id]/prep`. Port CareerOps `oferta.md` evaluation prompt. CV tailoring + cover letter generation flows. Story extraction from Block F of evaluations + retrieval into outreach drafting. pgvector + Voyage AI embeddings. Child-process integration of CareerOps `generate-pdf.mjs` for PDF rendering.
+**Redesign v2 deliverable:** Single `Pursuit` entity with `type: "company" | "job"` discriminator. SQLite at `./narad.db` (dev) or `~/.narad/data.sqlite` (plugin install). Three routers: profile / pursuits (19 procedures) / sources (2 procedures). 6 services + 11 AI prompts preserved or rewired. Plugin manifest + 3 skills + dev-server launcher. 64/64 vitest tests passing across 11 service/parser test files. UI: kanban (9 cols, dnd-kit), pursuits/new (paste field), pursuits/[id] (8 tabs: overview, research, jd/cv/cover-letter for jobs, outreach, follow-ups, notes), queue (keyboard-driven), inbox, dashboard. End state: single-user job pipeline GUI installed via Claude Code plugin, fully Pursuit-shaped, all earlier UX polish preserved.
+
+### Post-redesign work (planned)
+Distilled from old A3 + Phase B plans, but framed against the simpler Pursuit model.
+
+| Theme | Status |
+|---|---|
+| Gmail OAuth + auto-send + reply polling | ⏳ Plan after redesign ships |
+| Multi-touch cadence engine (follow-up materializer) | ⏳ Plan after redesign ships |
+| Funnel analytics page | ⏳ Plan after redesign ships |
+| Story-bank with pgvector + Voyage embeddings | ⏳ Plan separately; non-blocking |
 
 ### Future (deferred from v1)
 
@@ -127,6 +131,10 @@ Major decisions and when they were made. Each row points to the spec/plan doc th
 | 2026-05-09 | Theme system: single accent hue 195 (teal-cyan) across both modes, cool-slate neutrals (hue 250), `next-themes` for system/light/dark toggle. Research-driven: avoid pure black/white, reduce chroma in dark mode, hand-tune per mode rather than invert | Polish add post-A1 ship |
 | 2026-05-09 | **Research provider: OpenAI Responses API with built-in web_search tool, NOT Perplexity Sonar.** Spec §5 #4 said "Perplexity (research) + Claude (everything else)" assuming Perplexity Pro included unlimited API. It does not — Pro only includes $5/mo Sonar credits, ~50 companies/mo at our query volume. User has unlimited OpenAI API access via ALAAI, so OpenAI's web_search tool serves the same function with no incremental cost. Same `ResearchResult` shape, same caller signatures. Provider union in types.ts now includes "openai". | A2 mid-execution swap |
 | 2026-05-09 | Drafting voice rules — research-backed banned-words list + length caps + named-and-dated concreteness bar. New module `src/server/services/ai/prompts/voice.ts` is the single source of truth; drafting + future cover-letter/CV-bullet prompts all import VOICE_RULES. Sources: 2026 LinkedIn cold-outreach guides (npprteam, Martal, CareerSidekick), Twixify/FSU/Walter Writes AI-tells lexicons, ResumeGenius cover-letter stats, Akula Law / Power Ties on F-1 framing. Same hue 195 / 0.13 chroma type rule but for prose: research-backed, opinionated, centralized. | A2 mid-execution sharpen |
+| 2026-05-09 | **Redesign v2 — Pursuit-first model, SQLite, Claude Code plugin.** Real-use feedback showed the A1/A2 multi-table CRM-style model (Company / Contact / Touchpoint / Template / Sequence / planned-Application / planned-JobDescription / planned-Asset / planned-Story / planned-StoryUsage) was over-engineered for solo job search. User mental model: "I'm pursuing this opportunity (job or company)" — one entity, with conditional artifacts. Collapse to single `Pursuit` table with `type: "company" \| "job"` discriminator and conditional fields (jdMarkdown, cvVariant, coverLetter only for jobs). Switch Postgres+Neon → SQLite (`@prisma/adapter-better-sqlite3`); single file at `~/.narad/data.sqlite` (or `./narad.db` for dev). Package as Claude Code plugin (`plugin.json` + `skills/{narad-open, narad-evaluate, narad-pursuits}.md` + `scripts/narad-launch.ts`). | Post-A2 real-use audit |
+| 2026-05-10 | **Prisma 7 driver adapter required even for SQLite.** Discovered during Task 4: Prisma 7's "client" engine (`provider = "prisma-client-js"` schema generator) refuses to construct without an `adapter` or `accelerateUrl`, even for SQLite. Adopted `@prisma/adapter-better-sqlite3` + `better-sqlite3` native module (added to pnpm `allowBuilds`). Pattern in `src/server/db.ts` and `scripts/seed.ts`: strip `file:` prefix from DATABASE_URL, pass to `new PrismaBetterSqlite3({url: filePath})`, then `new PrismaClient({adapter})`. | Redesign v2 mid-execution |
+| 2026-05-10 | **Workday JD URL regex must allow multi-segment subdomains.** Production Workday URLs are shaped `tenant.wdN.myworkdayjobs.com/External/job/...` (e.g. `nvidia.wd5.myworkdayjobs.com/...`), not single-segment `tenant.myworkdayjobs.com/...`. Original spec regex `[\w-]+\.myworkdayjobs\.com` would route real Workday URLs to `single-url` instead of `jd-url`, suppressing JD extraction. Loosened to `[\w.-]+\.myworkdayjobs\.com` and added a realistic-shape test. | Redesign v2 mid-execution |
+| 2026-05-10 | **Redesign v2 implementation complete on `feat/redesign-v2`.** All 7 slices done: SQLite + Pursuit schema; Pursuit router (19 procedures) + research engine + drafting engine + JD extractor + JD artifacts (eval/CV variant/cover letter) + send dispatcher; parsers + source importer + sources router; UI rebuild (sidebar / kanban / detail+8tabs / new / queue / inbox / dashboard); plugin packaging; e2e specs rewritten. 64/64 vitest tests passing. Server + UI tsc clean. Awaiting user merge to main + tag `v0.3-redesign`. | Redesign v2 ship |
 
 ---
 

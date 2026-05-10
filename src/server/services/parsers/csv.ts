@@ -1,38 +1,89 @@
-import type { SourceParser, ParsedTarget } from "./types";
+import type { ParsedTarget, Parser } from "./types";
 
-export const csvParser: SourceParser = {
+const NAME_KEYS = ["companyname", "name"];
+const DOMAIN_KEYS = ["companydomain", "domain", "website"];
+const JD_URL_KEYS = ["jdurl", "url", "joburl"];
+const HINT_KEYS = ["hint"];
+
+/**
+ * Minimal CSV row splitter — handles double-quoted fields with embedded commas
+ * and escaped double-quotes (""). Newlines inside quoted fields are not
+ * supported (parser splits on \n at the line level).
+ */
+function splitCsvRow(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      out.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+}
+
+function pick(
+  row: Record<string, string>,
+  keys: string[],
+): string | null {
+  for (const k of keys) {
+    const v = row[k];
+    if (v != null && v !== "") return v;
+  }
+  return null;
+}
+
+export const csvParser: Parser = {
   format: "csv",
-  matches(input: string): boolean {
-    const firstLine = input.split(/\r?\n/, 1)[0]?.toLowerCase() ?? "";
-    if (!firstLine.includes(",")) return false;
-    const headers = firstLine.split(",").map((s) => s.trim());
-    return headers.some((h) => h === "name" || h === "domain" || h === "company");
-  },
-  async parse(input: string): Promise<ParsedTarget[]> {
-    const lines = input.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  parse(raw: string): ParsedTarget[] {
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-    const idx = (key: string) => headers.findIndex((h) => h === key);
-
-    const nameIdx = idx("name") !== -1 ? idx("name") : idx("company");
-    const domainIdx = idx("domain");
-    const sectorIdx = idx("sector");
-    const stageIdx = idx("stage");
-    const sourceIdx = idx("source") !== -1 ? idx("source") : idx("url");
-
+    const header = splitCsvRow(lines[0]!).map((h) => h.toLowerCase());
     const out: ParsedTarget[] = [];
+
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(",").map((c) => c.trim());
-      const name = nameIdx !== -1 ? cols[nameIdx] : cols[0];
-      if (!name) continue;
+      const cells = splitCsvRow(lines[i]!);
+      const row: Record<string, string> = {};
+      for (let j = 0; j < header.length; j++) {
+        row[header[j]!] = cells[j] ?? "";
+      }
+
+      const companyName = pick(row, NAME_KEYS);
+      if (!companyName) continue;
+
+      const companyDomain = pick(row, DOMAIN_KEYS);
+      const jdUrl = pick(row, JD_URL_KEYS);
+      const hint = pick(row, HINT_KEYS);
+
       out.push({
-        name,
-        domain: domainIdx !== -1 ? cols[domainIdx] || null : null,
-        sourceUrl: sourceIdx !== -1 ? cols[sourceIdx] || null : null,
-        sector: sectorIdx !== -1 ? cols[sectorIdx] || null : null,
-        stage: stageIdx !== -1 ? cols[stageIdx] || null : null,
-        hint: null,
+        type: jdUrl ? "job" : "company",
+        companyName,
+        companyDomain,
+        jdUrl,
+        pastedUrl: jdUrl ?? null,
+        hint,
       });
     }
     return out;

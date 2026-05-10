@@ -4,8 +4,8 @@ test.describe.configure({ mode: "serial" });
 
 const ROUTES = [
   { path: "/", name: "dashboard" },
-  { path: "/companies", name: "companies-kanban" },
-  { path: "/companies/new", name: "add-company" },
+  { path: "/pursuits", name: "pursuits-kanban" },
+  { path: "/pursuits/new", name: "new-pursuit" },
   { path: "/queue", name: "queue" },
   { path: "/inbox", name: "inbox" },
   { path: "/settings", name: "settings" },

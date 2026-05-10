@@ -1,21 +1,31 @@
-import type { SendAdapter } from "./types";
+import type { SendAdapter, SendInput, SendResult } from "./types";
+
+async function send(input: SendInput): Promise<SendResult> {
+  const { pursuit } = input;
+
+  if (!pursuit.contactEmail) {
+    return {
+      kind: "failed",
+      error: "Pursuit has no contactEmail; cannot build mailto URL.",
+    };
+  }
+  if (!pursuit.outreachBody) {
+    return { kind: "failed", error: "Pursuit has no outreachBody to send." };
+  }
+
+  const subject = pursuit.outreachSubject ?? "";
+  const body = pursuit.outreachBody;
+  const mailtoUrl = `mailto:${pursuit.contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  return {
+    kind: "queued-for-manual",
+    instructions: "Click to open in your default mail client.",
+    mailtoUrl,
+  };
+}
 
 export const mailtoAdapter: SendAdapter = {
   id: "mailto",
-  label: "Email (open in mail client)",
-  async send({ message, contact }) {
-    if (!contact.email) {
-      return { kind: "failed", error: "Contact has no email" };
-    }
-    const params = new URLSearchParams();
-    if (message.subject) params.set("subject", message.subject);
-    params.set("body", message.body);
-    const mailtoUrl = `mailto:${contact.email}?${params.toString()}`;
-
-    return {
-      kind: "queued-for-manual",
-      instructions: `Mail client opens with prefilled draft to ${contact.email}. Click Send in your client. Then come back and confirm sent.`,
-      mailtoUrl,
-    };
-  },
+  label: "Open in mail client (mailto:)",
+  send,
 };

@@ -1,17 +1,39 @@
-import type { Profile, Contact, Company, Template, CompanyResearch } from "@prisma/client";
 import { VOICE_RULES } from "./voice";
 
 export type DraftMessageInput = {
-  profile: Pick<Profile, "narrative" | "cvMarkdown" | "signature" | "visaDisclosurePolicy">;
-  contact: Pick<Contact, "name" | "role" | "linkedinUrl" | "email" | "twitterUrl">;
-  company: Pick<Company, "name" | "domain" | "sector" | "stage">;
-  research: Pick<CompanyResearch, "overview" | "hiringSignal" | "founderContent"> | null;
-  /** Optional template — when null, AI writes from scratch using goal + context. */
-  template: Pick<Template, "channel" | "contactType" | "body" | "subject" | "constraints"> | null;
-  /** Channel must be specified explicitly (was previously implied by template). */
+  pursuit: {
+    type: "company" | "job";
+    companyName: string;
+    companyDomain: string | null;
+    contactName: string | null;
+    contactRole: string | null;
+    contactEmail: string | null;
+    contactLinkedinUrl: string | null;
+    contactTwitterUrl: string | null;
+    notes: string | null;
+    // for job pursuits only:
+    jdUrl?: string | null;
+    jdTitle?: string | null;
+    jdMarkdown?: string | null;
+  };
+  research: import("@/server/types/pursuit").CompanyResearchJson | null;
+  profile: {
+    cvMarkdown: string | null;
+    archetypes: string | null; // JSON-encoded string from SQLite
+    narrative: string | null;
+    visaDisclosurePolicy: string;
+    signature: string | null;
+  };
   channel: "email" | "linkedin";
-  /** Optional user-stated goal/intent for this message. */
-  goal: string | null;
+  goal?: string | null;
+};
+
+export type DraftMessageOutput = {
+  subject: string | null; // null for linkedin
+  body: string;
+  confidence: number; // 0-100
+  reasoning: string;
+  hookUsed: string;
 };
 
 export function draftMessageSystemPrompt(): string {
@@ -41,7 +63,7 @@ The candidate is on F-1 student visa. Default policy is NEVER mention visa, OPT,
 }
 
 export function draftMessageUserPrompt(input: DraftMessageInput): string {
-  const { profile, contact, company, research, template, channel, goal } = input;
+  const { pursuit, research, profile, channel, goal } = input;
 
   const visaInstruction =
     profile.visaDisclosurePolicy === "disclose-upfront"
@@ -50,30 +72,23 @@ export function draftMessageUserPrompt(input: DraftMessageInput): string {
       ? "Do NOT mention visa in this cold message. (It's reply-stage only.)"
       : "Do NOT mention visa.";
 
-  const overview = (research?.overview as { text?: string } | null)?.text ?? "(no research yet)";
-  const hiringSignal = (research?.hiringSignal as { text?: string } | null)?.text ?? "(no hiring signal)";
-  const founderContent = (research?.founderContent as { text?: string } | null)?.text ?? "(no founder content)";
+  const overview = research?.overview?.text ?? "(no research yet)";
+  const hiringSignal = research?.hiringSignal?.text ?? "(no hiring signal)";
+  const founderContent = research?.founderContent?.text ?? "(no founder content)";
+
+  const sector = research?.facts?.sector ?? null;
+  const stage = research?.facts?.stage ?? null;
 
   const channelGuidance =
     channel === "linkedin"
       ? "CHANNEL: LinkedIn DM. Hard cap 300 chars. Target 75-150 words. Subject = null."
       : "CHANNEL: Email. Target 100-180 words. Cover-letter-style if hook warrants substance, ping-style if recipient is busy/senior. Provide a subject (≤60 chars, concrete + non-pitchy).";
 
-  const templateBlock = template
-    ? `TEMPLATE TO USE AS STARTING POINT (replace every {{variable}} with concrete content from the data above; never leave a {{placeholder}} unfilled):
-- Channel hint: ${template.channel}
-- Contact-type hint: ${template.contactType}
-- Subject (email only): ${template.subject ?? "(none)"}
-- Body template:
-${template.body}
-
-Constraints from this template:
-${JSON.stringify(template.constraints)}`
-    : `NO TEMPLATE — write from scratch.
+  const templateBlock = `NO TEMPLATE — write from scratch.
 
 Decide the best register, hook, structure, and ask based on:
-- The contact's role (${contact.role ?? "unknown"}) and what their day looks like
-- The company stage/sector (${company.stage ?? "unknown"} / ${company.sector ?? "unknown"})
+- The contact's role (${pursuit.contactRole ?? "unknown"}) and what their day looks like
+- The company stage/sector (${stage ?? "unknown"} / ${sector ?? "unknown"})
 - The most concrete signal from research (cited founder posts, role gaps, recent funding)
 - The candidate's narrative + CV
 - The user's goal (below)
@@ -87,6 +102,18 @@ ${goal}
 Frame the message so it accomplishes this goal. The "ask" sentence should reflect this directly.`
     : `USER'S GOAL: not stated. Default — open a peer-to-peer conversation grounded in the most concrete recent signal you can find in research. Ask one question they'd want to answer (not "are you hiring", but something specific to their work).`;
 
+  const jdBlock =
+    pursuit.type === "job" && pursuit.jdMarkdown
+      ? `JOB POSTING CONTEXT:
+- Title: ${pursuit.jdTitle ?? "(unknown)"}
+- Excerpt (first 1500 chars):
+${pursuit.jdMarkdown.slice(0, 1500)}
+
+`
+      : "";
+
+  const notesBlock = pursuit.notes ? `NOTES (user's own context for this pursuit):\n${pursuit.notes}\n\n` : "";
+
   return `CANDIDATE:
 ${profile.narrative ?? "(no narrative)"}
 
@@ -97,17 +124,17 @@ CV (first 1500 chars):
 ${(profile.cvMarkdown ?? "").slice(0, 1500)}
 
 CONTACT:
-- Name: ${contact.name}
-- Role: ${contact.role ?? "unknown"}
-- LinkedIn: ${contact.linkedinUrl ?? "(unknown)"}
-- Twitter: ${contact.twitterUrl ?? "(unknown)"}
-- Email: ${contact.email ?? "(unknown)"}
+- Name: ${pursuit.contactName ?? "(unknown)"}
+- Role: ${pursuit.contactRole ?? "unknown"}
+- LinkedIn: ${pursuit.contactLinkedinUrl ?? "(unknown)"}
+- Twitter: ${pursuit.contactTwitterUrl ?? "(unknown)"}
+- Email: ${pursuit.contactEmail ?? "(unknown)"}
 
 COMPANY:
-- Name: ${company.name}
-- Domain: ${company.domain ?? "(unknown)"}
-- Sector: ${company.sector ?? "(unknown)"}
-- Stage: ${company.stage ?? "(unknown)"}
+- Name: ${pursuit.companyName}
+- Domain: ${pursuit.companyDomain ?? "(unknown)"}
+- Sector: ${sector ?? "(unknown)"}
+- Stage: ${stage ?? "(unknown)"}
 
 RESEARCH (use these for the hook):
 
@@ -120,7 +147,7 @@ ${hiringSignal}
 == Founder content (look for OUTREACH HOOKS section) ==
 ${founderContent}
 
-${channelGuidance}
+${jdBlock}${notesBlock}${channelGuidance}
 
 ${templateBlock}
 

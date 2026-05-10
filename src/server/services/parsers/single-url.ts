@@ -1,16 +1,20 @@
-import type { SourceParser, ParsedTarget } from "./types";
-import { parseLineToTarget } from "./url-list";
+import type { ParsedTarget, Parser } from "./types";
+import { deriveNameFromHost, getHostname } from "./url-list";
 
-const URL_LINE = /^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i;
-
-export const singleUrlParser: SourceParser = {
+export const singleUrlParser: Parser = {
   format: "single-url",
-  matches(input: string): boolean {
-    const trimmed = input.trim();
-    if (trimmed.includes("\n")) return false;
-    return URL_LINE.test(trimmed);
-  },
-  async parse(input: string): Promise<ParsedTarget[]> {
-    return [parseLineToTarget(input.trim())];
+  parse(raw: string): ParsedTarget[] {
+    const url = raw.trim();
+    if (!url) return [];
+    return [
+      {
+        type: "company",
+        companyName: deriveNameFromHost(url),
+        companyDomain: getHostname(url),
+        jdUrl: null,
+        pastedUrl: url,
+        hint: null,
+      },
+    ];
   },
 };
