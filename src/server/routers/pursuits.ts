@@ -31,6 +31,14 @@ export const pursuitsRouter = router({
       return rows.map(decodePursuit);
     }),
 
+  queueList: publicProcedure.query(async () => {
+    const rows = await db.pursuit.findMany({
+      where: { outreachBody: { not: null }, outreachSentAt: null },
+      orderBy: { updatedAt: "desc" },
+    });
+    return rows.map(decodePursuit);
+  }),
+
   byId: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
