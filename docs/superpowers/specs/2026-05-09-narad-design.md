@@ -1,7 +1,9 @@
 # Narad — Design Spec
 
+> ⚠️ **SUPERSEDED by [2026-05-09-narad-redesign-v2.md](2026-05-09-narad-redesign-v2.md) as of 2026-05-10.** A1 and A2 shipped against this spec (tags `v0.1-a1`, `v0.2-a2`); subsequent real-use feedback showed the multi-table CRM-style data model was over-engineered for solo job search. The redesign collapses 6+ existing entities + 5 planned entities into a single `Pursuit` table, switches to SQLite, and packages as a Claude Code plugin. Read the redesign-v2 spec for current ground truth.
+
 **Date:** 2026-05-09
-**Status:** Approved (brainstorming complete)
+**Status:** Approved (brainstorming complete) — superseded
 **Author:** Mohit Mujawdiya
 **Working directory:** `/Users/mojito/Coding Projects/narad`
 
