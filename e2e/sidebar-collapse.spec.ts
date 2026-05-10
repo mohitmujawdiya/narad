@@ -5,8 +5,8 @@ test.describe.configure({ mode: "serial" });
 test("sidebar collapses and expands; kanban scroll is contained", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("theme", "dark"));
 
-  // 1. Visit /companies (has kanban with potentially wide content)
-  await page.goto("/companies");
+  // 1. Visit /pursuits (has kanban with potentially wide content)
+  await page.goto("/pursuits");
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(800);
 

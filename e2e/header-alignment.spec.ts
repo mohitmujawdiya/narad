@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("sidebar header and topbar headers form a continuous horizontal line", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("theme", "dark"));
-  await page.goto("/companies");
+  await page.goto("/pursuits");
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(500);
 

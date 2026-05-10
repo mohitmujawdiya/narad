@@ -2,11 +2,13 @@ import { test, expect } from "@playwright/test";
 import { config } from "dotenv";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 config({ path: path.resolve(__dirname, "../.env.local"), override: true });
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const url = process.env.DATABASE_URL ?? "file:./narad.db";
+const filePath = url.replace(/^file:/, "");
+const adapter = new PrismaBetterSqlite3({ url: filePath });
 const db = new PrismaClient({ adapter });
 
 const STAMP = Date.now().toString(36);
@@ -15,49 +17,86 @@ const DOMAIN = `aitest-${STAMP}.test`;
 const CONTACT_NAME = `Test Person ${STAMP}`;
 
 test.afterAll(async () => {
-  await db.company.deleteMany({ where: { domain: DOMAIN } });
+  await db.pursuit.deleteMany({ where: { companyDomain: DOMAIN } });
   await db.$disconnect();
 });
 
-test("AI draft generates a queued touchpoint with non-null confidence", async ({ page }) => {
-  // Seed: company + contact (skip going through GUI; that's covered by daily-ritual.spec.ts)
-  const company = await db.company.create({
-    data: { name: COMPANY_NAME, domain: DOMAIN, sector: "test", status: "Targeting" },
-  });
-  const contact = await db.contact.create({
-    data: { companyId: company.id, name: CONTACT_NAME, role: "PM", email: `test@${DOMAIN}` },
+test.beforeAll(({}, testInfo) => {
+  if (!process.env.OPENAI_API_KEY) {
+    testInfo.skip(true, "OPENAI_API_KEY not set — AI draft test skipped");
+  }
+});
+
+test("AI draft generates an outreach body with confidence on the Pursuit", async ({ page }) => {
+  // Seed a pursuit with pre-populated research + contact so the model has
+  // grounding without us having to call the research pipeline first.
+  const research = {
+    overview: {
+      text: `${COMPANY_NAME} is a fintech infra startup focused on payments orchestration.`,
+      citations: [{ title: "About page", url: `https://${DOMAIN}/about` }],
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 1000 },
+    },
+    hiringSignal: {
+      text: "Posted a founding-engineer role 2 weeks ago.",
+      citations: [{ title: "Careers", url: `https://${DOMAIN}/careers` }],
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 1000 },
+    },
+    founderContent: {
+      text: `${CONTACT_NAME} recently wrote about building reliability into payment retries.`,
+      citations: [{ title: "Blog", url: `https://${DOMAIN}/blog/retries` }],
+      meta: { provider: "openai", model: "gpt-5.5", latencyMs: 1000 },
+    },
+    refreshedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+
+  const pursuit = await db.pursuit.create({
+    data: {
+      type: "company",
+      companyName: COMPANY_NAME,
+      companyDomain: DOMAIN,
+      status: "Targeting",
+      contactName: CONTACT_NAME,
+      contactRole: "Founding Engineer",
+      contactEmail: `test@${DOMAIN}`,
+      companyResearch: JSON.stringify(research),
+    },
   });
 
-  // Open the contact page
-  await page.goto(`/contacts/${contact.id}`);
+  // Open the pursuit detail page → Outreach tab
+  await page.goto(`/pursuits/${pursuit.id}`);
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("heading", { level: 1, name: CONTACT_NAME })).toBeVisible({ timeout: 15_000 });
+  await expect(
+    page.getByRole("heading", { level: 2, name: COMPANY_NAME }),
+  ).toBeVisible({ timeout: 15_000 });
 
-  // Click "AI draft"
-  await page.getByRole("button", { name: /AI draft/i }).click();
+  await page.getByRole("tab", { name: /Outreach/i }).click();
+
+  // No draft yet — click "Draft outreach" button to open the AI dialog
+  await page.getByRole("button", { name: /Draft outreach/i }).click();
+
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/Draft outreach with AI/i)).toBeVisible();
 
-  // No template picker. Optionally fill goal:
-  const goalField = dialog.getByLabel(/Goal/i);
-  await goalField.fill("informational chat about their AI thesis");
+  // Optional goal field
+  await dialog.getByLabel(/Goal/i).fill("informational chat about their reliability work");
 
-  // Generate
-  await dialog.getByRole("button", { name: /Generate draft/i }).click();
+  // Click "Draft" — the dialog closes on success.
+  await dialog.getByRole("button", { name: /^Draft$/ }).click();
 
-  // Wait up to 60s for the AI to draft + redirect to /queue
-  await expect(page).toHaveURL(/\/queue/, { timeout: 60_000 });
-  await page.waitForLoadState("networkidle");
+  // Wait up to 60s for AI to finish + dialog to close + body to appear.
+  await expect(dialog).not.toBeVisible({ timeout: 60_000 });
 
-  // Verify the touchpoint exists in DB with a confidence score
-  const tp = await db.touchpoint.findFirstOrThrow({
-    where: { contactId: contact.id },
-    include: { message: true },
-  });
-  expect(tp.status).toBe("Drafted");
-  expect(tp.message?.body.length ?? 0).toBeGreaterThan(20); // some real content
-  expect(tp.message?.draftConfidence).not.toBeNull();
-  expect(tp.message?.draftedBy).toContain("gpt-5"); // model id should be one of the gpt-5 family
+  // Outreach card now shows the body in a <pre> + a confidence badge
+  await expect(page.getByText(/Outreach draft/i)).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Confidence:\s*\d+\/100/i)).toBeVisible();
+
+  // Verify the DB row got the body + meta written
+  const updated = await db.pursuit.findUniqueOrThrow({ where: { id: pursuit.id } });
+  expect((updated.outreachBody ?? "").length).toBeGreaterThan(20);
+  expect(updated.outreachConfidence).not.toBeNull();
+  expect(updated.outreachChannel).toBe("email");
 
   await page.screenshot({ path: "e2e-screenshots/ai-draft-success.png", fullPage: true });
 });
